@@ -17,11 +17,25 @@ app.use("*", secureHeaders({
   referrerPolicy: "strict-origin-when-cross-origin",
 }));
 
-// Security Audit Fix (SEC-08): Explicit CORS with credentials
+// Security Audit Fix (SEC-08 & SEC-04): Strict CORS with credentials
 app.use("/api/*", cors({
-  origin: (origin) => origin || "*",
+  origin: (origin) => {
+    if (!origin) return "*";
+    if (
+      origin.startsWith("http://localhost:") ||
+      origin.startsWith("http://127.0.0.1:") ||
+      origin.endsWith(".ngrok-free.app") ||
+      origin.endsWith(".ngrok-free.dev") ||
+      origin.endsWith(".ngrok.io") ||
+      origin.endsWith(".pages.dev") ||
+      origin.endsWith(".workers.dev")
+    ) {
+      return origin;
+    }
+    return null;
+  },
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
   credentials: true,
 }));
 
@@ -54,12 +68,18 @@ app.use("/api/*", async (c, next) => {
     return requireRoles("landlord", "admin")(c, next);
   }
 
-  // Also protect confidential financial ledgers and tenant private info from anonymous scraping
+  // Security Audit Fix (SEC-01, SEC-02, SEC-03): Protect confidential ledgers, tenant PII, work orders, dashboard, and backend inventory
   if (
     path.startsWith("/api/tenants") ||
     path.startsWith("/api/leases") ||
     path.startsWith("/api/rent-charges") ||
-    path.startsWith("/api/payments")
+    path.startsWith("/api/payments") ||
+    path.startsWith("/api/applications") ||
+    path.startsWith("/api/work-orders") ||
+    path.startsWith("/api/dashboard") ||
+    path.startsWith("/api/vendors") ||
+    path.startsWith("/api/properties") ||
+    path.startsWith("/api/units")
   ) {
     return requireRoles("landlord", "admin")(c, next);
   }
@@ -115,6 +135,7 @@ function rateLimiter(options: { max: number; windowMs: number; keyPrefix: string
 app.use("/api/auth/login", rateLimiter({ max: 10, windowMs: 5 * 60 * 1000, keyPrefix: "login" }));
 app.use("/api/auth/register", rateLimiter({ max: 10, windowMs: 5 * 60 * 1000, keyPrefix: "register" }));
 app.use("/api/public/apply", rateLimiter({ max: 15, windowMs: 30 * 60 * 1000, keyPrefix: "apply" }));
+app.use("/api/ai/*", rateLimiter({ max: 30, windowMs: 60 * 1000, keyPrefix: "ai" }));
 
 
 // ── First-run data ─────────────────────────────────────────────────
@@ -459,8 +480,7 @@ const RegisterInput = z.object({
     .min(8, "Password must be at least 8 characters")
     .regex(/[0-9]/, "Password must contain at least one number"),
   full_name: z.string().min(1, "Full name is required"),
-  role: z.enum(["admin", "landlord", "tenant"]).default("landlord"),
-  tenant_id: z.number().int().optional().nullable(),
+  role: z.enum(["admin", "landlord", "tenant"]).default("tenant"),
 });
 
 const LoginInput = z.object({
@@ -471,14 +491,16 @@ const LoginInput = z.object({
 app.post("/api/auth/register", async (c) => {
   const parsed = await parseJson(c, RegisterInput);
   if (!parsed.ok) return c.json({ error: parsed.error }, 400);
-  const { email, password, full_name, role, tenant_id } = parsed.data;
+  const { email, password, full_name, role } = parsed.data;
 
-  // Security Audit Fix: Prevent privilege escalation. Public self-registration cannot create admin accounts.
-  let assignedRole = role;
-  if (role === "admin") {
+  // Security Audit Fix (SEC-06): Prevent privilege escalation. Public registration cannot create landlord/admin accounts.
+  let assignedRole: "admin" | "landlord" | "tenant" = "tenant";
+  if (role === "admin" || role === "landlord") {
     const caller = await verifyToken(c);
-    if (!caller || caller.role !== "admin") {
-      return c.json({ error: "Unauthorized: only administrators can create admin accounts" }, 403);
+    if (caller && caller.role === "admin") {
+      assignedRole = role;
+    } else {
+      assignedRole = "tenant";
     }
   }
 
@@ -497,9 +519,9 @@ app.post("/api/auth/register", async (c) => {
     return c.json({ error: "Unable to register with this email address. Please sign in or try another email." }, 409);
   }
 
-  // Auto-link to existing tenant record if matching email exists
+  // Security Audit Fix (SEC-05): Auto-link only to existing verified tenant in DB (never trust client tenant_id)
   const matchingTenant = await get<{ id: number }>("SELECT id FROM tenants WHERE lower(email) = ?", [normalizedEmail]);
-  const finalTenantId = tenant_id ?? matchingTenant?.id ?? null;
+  const finalTenantId = matchingTenant?.id ?? null;
   const finalRole = matchingTenant ? "tenant" : assignedRole;
 
   const { hash, salt } = await hashPassword(password);
@@ -1203,9 +1225,11 @@ app.post("/api/rent-charges/generate", async (c) => {
   );
   let created = 0;
   for (const l of leases) {
-    // Skip if the lease doesn't cover this period at all.
+    // Skip if the lease doesn't cover this period at all (BUG-01 fix: check both start and end dates)
     const periodStart = `${period}-01`;
+    const periodEnd = `${period}-31`;
     if (l.end_date < periodStart) continue;
+    if (l.start_date > periodEnd) continue;
     const day = String(Math.min(28, Math.max(1, l.rent_due_day))).padStart(2, "0");
     const dueDate = `${period}-${day}`;
     const r = await run(
@@ -1271,14 +1295,17 @@ app.post("/api/payments", async (c) => {
   const parsed = await parseJson(c, PaymentInput);
   if (!parsed.ok) return c.json({ error: parsed.error }, 400);
   const d = parsed.data;
+
+  // Security Audit Fix (BUG-02): Validate charge exists BEFORE inserting payment to prevent orphaned records
+  const charge = await get<{ amount: number }>("SELECT amount FROM rent_charges WHERE id = ?", [d.charge_id]);
+  if (!charge) return c.json({ error: "Charge not found" }, 404);
+
   await run(
     `INSERT INTO payments (charge_id, paid_at, amount, method, reference, notes)
      VALUES (?, COALESCE(?, datetime('now')), ?, ?, ?, ?)`,
     [d.charge_id, d.paid_at ?? null, d.amount, d.method ?? "cash", d.reference ?? null, d.notes ?? null],
   );
   // Recompute the charge's amount_paid + status.
-  const charge = await get<{ amount: number }>("SELECT amount FROM rent_charges WHERE id = ?", [d.charge_id]);
-  if (!charge) return c.json({ error: "Charge not found" }, 404);
   const sumRow = await get<{ total: number }>("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE charge_id = ?", [d.charge_id]);
   const paid = Number(sumRow?.total ?? 0);
   const status = paid >= charge.amount ? "paid" : paid > 0 ? "partial" : "open";
@@ -1814,5 +1841,21 @@ app.put("/api/settings", async (c) => {
 // ── Health ─────────────────────────────────────────────────────────
 
 app.get("/api/health", (c) => c.json({ ok: true }));
+
+// Security Audit Fix (BUG-04): Global error boundary suppressing internal stack trace leakage
+app.onError((err, c) => {
+  console.error("[Internal API Error]", err.message);
+  return c.json(
+    {
+      error: "An internal server error occurred. Please try again later.",
+      code: "INTERNAL_ERROR",
+    },
+    500
+  );
+});
+
+app.notFound((c) => {
+  return c.json({ error: "Endpoint not found", code: "NOT_FOUND" }, 404);
+});
 
 export default app;
