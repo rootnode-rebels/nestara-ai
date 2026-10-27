@@ -154,11 +154,10 @@ const DEMO_VENDORS: Array<[string, string, string, string]> = [
   ["Bright Spark Electricals", "electrician", "+91 98450 01102", "amber"],
 ];
 
-let seeded = false; // per-isolate fast path; the COUNT re-checks are cheap
+let seeded = false;
 
 async function ensureSeeded(): Promise<void> {
   if (seeded) return;
-  seeded = true;
   try {
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       await run("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", [key, value]);
@@ -196,6 +195,136 @@ async function ensureSeeded(): Promise<void> {
       }
     }
 
+    // ── Seed Demo Tenants ───────────────────────────────────────────
+    let tenantAarav = await get<{ id: number }>("SELECT id FROM tenants WHERE email = 'tenant1@nestara.ai'");
+    if (!tenantAarav) {
+      const res = await run(
+        `INSERT INTO tenants (first_name, last_name, email, phone, employer, monthly_income, emergency_contact, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          "Aarav",
+          "Sharma",
+          "tenant1@nestara.ai",
+          "+91 98450 12345",
+          "Google India",
+          185000,
+          "Pooja Sharma (Spouse) +91 98450 12346",
+          "Family with 1 child. Moved from Delhi to Bangalore Koramangala hub.",
+        ]
+      );
+      tenantAarav = { id: Number(res.lastInsertRowid) };
+    }
+
+    let tenantRohan = await get<{ id: number }>("SELECT id FROM tenants WHERE email = 'rohan.verma@gmail.com'");
+    if (!tenantRohan) {
+      const res = await run(
+        `INSERT INTO tenants (first_name, last_name, email, phone, employer, monthly_income, emergency_contact, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          "Rohan",
+          "Verma",
+          "rohan.verma@gmail.com",
+          "+91 98450 54321",
+          "Flipkart Internet",
+          140000,
+          "Sunil Verma (Father) +91 98450 54322",
+          "Software Architect. Daily commute along Outer Ring Road corridor.",
+        ]
+      );
+      tenantRohan = { id: Number(res.lastInsertRowid) };
+    }
+
+    let tenantAnanya = await get<{ id: number }>("SELECT id FROM tenants WHERE email = 'ananya.iyer@gmail.com'");
+    if (!tenantAnanya) {
+      const res = await run(
+        `INSERT INTO tenants (first_name, last_name, email, phone, employer, monthly_income, emergency_contact, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          "Ananya",
+          "Iyer",
+          "ananya.iyer@gmail.com",
+          "+91 98450 88990",
+          "Infosys Technologies",
+          95000,
+          "Deepak Iyer (Brother) +91 98450 88991",
+          "Senior Data Analyst. Interested in quiet residential community.",
+        ]
+      );
+      tenantAnanya = { id: Number(res.lastInsertRowid) };
+    }
+
+    // ── Seed Demo Leases ────────────────────────────────────────────
+    const leasesCount = await get<{ n: number }>("SELECT COUNT(*) AS n FROM leases");
+    if ((leasesCount?.n ?? 0) === 0) {
+      const allUnits = await query<{ id: number; name: string; market_rent: number }>("SELECT id, name, market_rent FROM units ORDER BY id ASC");
+      const unit1 = allUnits[0];
+      const unit2 = allUnits[1];
+      const unit3 = allUnits[2];
+
+      if (tenantAarav && unit1) {
+        // Active lease for Aarav Sharma (Oakwood Residences - Main Villa)
+        const res1 = await run(
+          `INSERT INTO leases (unit_id, primary_tenant_id, start_date, end_date, monthly_rent, deposit, rent_due_day, late_fee, status, notes)
+           VALUES (?, ?, '2026-01-01', '2026-12-31', 35000, 70000, 1, 500, 'active', ?)`,
+          [unit1.id, tenantAarav.id, "Registered 11-month Bangalore residential agreement. Standard 2-month deposit."]
+        );
+        const lease1Id = res1.lastInsertRowid;
+        await run("UPDATE units SET status = 'occupied' WHERE id = ?", [unit1.id]);
+
+        // Seed Rent Charges for Lease 1
+        await run(
+          `INSERT INTO rent_charges (lease_id, period, due_date, amount, amount_paid, status, notes)
+           VALUES (?, '2026-10', '2026-10-01', 35000, 35000, 'paid', 'Settled on Oct 2 via UPI (ref: UPI/90281/SBIN)')`,
+          [lease1Id]
+        );
+        await run(
+          `INSERT INTO rent_charges (lease_id, period, due_date, amount, amount_paid, status, notes)
+           VALUES (?, '2026-11', '2026-11-01', 35000, 0, 'open', 'Upcoming monthly rent for November')`,
+          [lease1Id]
+        );
+
+        // Seed demo maintenance ticket
+        const prop1 = await get<{ property_id: number }>("SELECT property_id FROM units WHERE id = ?", [unit1.id]);
+        await run(
+          `INSERT INTO work_orders (property_id, unit_id, tenant_id, title, description, priority, status)
+           VALUES (?, ?, ?, 'RO Water Purifier Servicing', 'Annual membrane replacement and TDS recalibration.', 'normal', 'open')`,
+          [prop1?.property_id ?? null, unit1.id, tenantAarav.id]
+        );
+      }
+
+      if (tenantRohan && unit3) {
+        // Active lease for Rohan Verma (308 Mission Heights - Unit 1)
+        const res2 = await run(
+          `INSERT INTO leases (unit_id, primary_tenant_id, start_date, end_date, monthly_rent, deposit, rent_due_day, late_fee, status, notes)
+           VALUES (?, ?, '2026-03-01', '2027-02-28', 18000, 36000, 1, 500, 'active', ?)`,
+          [unit3.id, tenantRohan.id, "Executive apartment lease. Verified IT professional."]
+        );
+        const lease2Id = res2.lastInsertRowid;
+        await run("UPDATE units SET status = 'occupied' WHERE id = ?", [unit3.id]);
+
+        await run(
+          `INSERT INTO rent_charges (lease_id, period, due_date, amount, amount_paid, status, notes)
+           VALUES (?, '2026-10', '2026-10-01', 18000, 18000, 'paid', 'Paid via HDFC NetBanking')`,
+          [lease2Id]
+        );
+        await run(
+          `INSERT INTO rent_charges (lease_id, period, due_date, amount, amount_paid, status, notes)
+           VALUES (?, '2026-11', '2026-11-01', 18000, 0, 'open', 'Upcoming monthly rent for November')`,
+          [lease2Id]
+        );
+      }
+
+      if (tenantAnanya && unit2) {
+        // Upcoming lease for Ananya Iyer (Honeybee Haven - Garden House)
+        await run(
+          `INSERT INTO leases (unit_id, primary_tenant_id, start_date, end_date, monthly_rent, deposit, rent_due_day, late_fee, status, notes)
+           VALUES (?, ?, '2026-11-15', '2027-11-14', 22000, 44000, 5, 500, 'upcoming', ?)`,
+          [unit2.id, tenantAnanya.id, "Advance token received. Possession date confirmed for Nov 15."]
+        );
+      }
+    }
+
+    // ── Seed Users ──────────────────────────────────────────────────
     const adminUser = await get<{ id: number }>("SELECT id FROM users WHERE email = 'admin@nestara.ai'");
     if (!adminUser) {
       const { hash, salt } = await hashPassword("Admin123!");
@@ -214,11 +343,21 @@ async function ensureSeeded(): Promise<void> {
       );
     }
 
+    const tenantUser = await get<{ id: number }>("SELECT id FROM users WHERE email = 'tenant1@nestara.ai'");
+    if (!tenantUser) {
+      const aarav = await get<{ id: number }>("SELECT id FROM tenants WHERE email = 'tenant1@nestara.ai'");
+      const { hash, salt } = await hashPassword("Password123!");
+      await run(
+        "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ["tenant1@nestara.ai", hash, salt, "Aarav Sharma", "tenant", aarav?.id ?? null, 1]
+      );
+    }
+
     // Ensure token_version column exists on existing databases (SEC-07)
     await run("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1").catch(() => {});
-  } catch {
-    // A cold database mid-migration, or a table this build has not created
-    // yet: the next request retries. Never fail a request over sample data.
+    seeded = true;
+  } catch (err) {
+    console.error("[ensureSeeded error]", err);
     seeded = false;
   }
 }
