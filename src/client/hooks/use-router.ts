@@ -35,16 +35,19 @@ function parse(rawPath: string): Route {
 
 
 export function useRouter() {
-  const [path, setPath] = useState<string>(() => window.location.pathname);
+  const [path, setPath] = useState<string>(
+    () => window.location.pathname + window.location.search
+  );
 
   const navigate = useCallback((to: string) => {
-    if (to === window.location.pathname) return;
+    const current = window.location.pathname + window.location.search;
+    if (to === current) return;
     window.history.pushState(null, "", to);
     setPath(to);
   }, []);
 
   useEffect(() => {
-    const handler = () => setPath(window.location.pathname);
+    const handler = () => setPath(window.location.pathname + window.location.search);
     window.addEventListener("popstate", handler);
     return () => window.removeEventListener("popstate", handler);
   }, []);

@@ -28,6 +28,7 @@ import {
 interface ExplorePageProps {
   navigate: (to: string) => void;
   onApply?: (listing: PublicListing) => void;
+  currentPath?: string;
 }
 
 // Curated architectural photos for Bengaluru modern residences
@@ -58,7 +59,7 @@ const NEIGHBORHOOD_TABS = [
   { label: "Whitefield", value: "Whitefield" },
 ];
 
-export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
+export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps) {
   const [listings, setListings] = useState<PublicListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -69,7 +70,10 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
   const [city, setCity] = useState("all");
   const [activeLifestyleTags, setActiveLifestyleTags] = useState<string[]>(["quiet", "metro"]);
   const [commuteHub, setCommuteHub] = useState("Embassy TechVillage / RMZ Ecospace (Max 25 mins)");
-  const [activeTab, setActiveTab] = useState("");
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get("loc") || "";
+  });
 
   // AI, Comparison, & Apply state
   const [selectedForComparison, setSelectedForComparison] = useState<PublicListing[]>([]);
@@ -77,14 +81,12 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
   const [isAiMatcherOpen, setIsAiMatcherOpen] = useState(false);
   const [applyListing, setApplyListing] = useState<PublicListing | null>(null);
 
-  // Sync with URL query parameters if opened via sidebar link (e.g. ?loc=Koramangala)
+  // Sync with URL query parameters whenever currentPath changes
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const loc = urlParams.get("loc");
-    if (loc) {
-      setActiveTab(loc);
-    }
-  }, []);
+    setActiveTab(loc || "");
+  }, [currentPath]);
 
   const handleApply = (listing: PublicListing) => {
     if (onApply) {

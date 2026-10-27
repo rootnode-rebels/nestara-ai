@@ -45,10 +45,10 @@ const PUBLIC_DISCOVERY: AppNavItem[] = [
 ];
 
 const PUBLIC_NEIGHBORHOODS: AppNavItem[] = [
-  { id: "koramangala", label: "Koramangala 4th/6th", href: "/explore?loc=Koramangala", icon: "map-pin", color: "green" },
-  { id: "indiranagar", label: "Indiranagar 100ft", href: "/explore?loc=Indiranagar", icon: "map-pin", color: "green" },
-  { id: "hsr", label: "HSR Layout Enclaves", href: "/explore?loc=HSR", icon: "map-pin", color: "green" },
-  { id: "lavelle", label: "Lavelle Road & Central", href: "/explore?loc=Lavelle", icon: "map-pin", color: "green" },
+  { id: "koramangala", label: "Koramangala 4th/6th", href: "/explore?loc=Koramangala", icon: "map-pin" },
+  { id: "indiranagar", label: "Indiranagar 100ft", href: "/explore?loc=Indiranagar", icon: "map-pin" },
+  { id: "hsr", label: "HSR Layout Enclaves", href: "/explore?loc=HSR", icon: "map-pin" },
+  { id: "lavelle", label: "Lavelle Road & Central", href: "/explore?loc=Lavelle", icon: "map-pin" },
 ];
 
 const TENANT_NAV: AppNavItem[] = [
@@ -57,7 +57,11 @@ const TENANT_NAV: AppNavItem[] = [
 ];
 
 /** A record page keeps its collection's row lit. */
-function activeFor(route: Route): string {
+function activeFor(route: Route, currentPath: string): string {
+  if (currentPath.includes("loc=Koramangala")) return "koramangala";
+  if (currentPath.includes("loc=Indiranagar")) return "indiranagar";
+  if (currentPath.includes("loc=HSR")) return "hsr";
+  if (currentPath.includes("loc=Lavelle")) return "lavelle";
   if (route.name === "property") return "properties";
   if (route.name === "tenant") return "tenants";
   return route.name;
@@ -127,7 +131,7 @@ export function App() {
                 title="Nestara AI"
                 icon="home"
                 groups={groups}
-                active={activeFor(route)}
+                active={activeFor(route, path)}
                 onNavigate={(item) => navigate(item.href ?? (auth.user?.role === "tenant" ? "/portal" : isLandlordOrAdmin ? "/dashboard" : "/explore"))}
               />
             </div>
@@ -185,7 +189,7 @@ export function App() {
             ) : (
               <>
                 {route.name === "dashboard" && <DashboardPage navigate={navigate} />}
-                {route.name === "explore" && <ExplorePage navigate={navigate} />}
+                {route.name === "explore" && <ExplorePage key={path} navigate={navigate} currentPath={path} />}
                 {route.name === "portal" && <TenantPortalPage navigate={navigate} />}
                 {route.name === "properties" && <PropertiesList navigate={navigate} />}
                 {route.name === "property" && <PropertyPage id={route.id} navigate={navigate} />}
