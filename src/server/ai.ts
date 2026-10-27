@@ -93,7 +93,7 @@ export function rankRecommendations(
         const savings = req.target_budget - unit.market_rent;
         budgetScore = 1.0;
         if (savings > 0) {
-          highlights.push(`$${savings.toLocaleString()}/mo below your target budget`);
+          highlights.push(`₹${savings.toLocaleString("en-IN")}/mo below your target budget`);
         } else {
           highlights.push("Matches your exact budget target");
         }
@@ -222,7 +222,7 @@ export function compareProperties(properties: CandidateListing[]): ComparisonRes
 
     if (is_best_price) strengths.push("Lowest monthly rent in comparison");
     if (is_largest) strengths.push("Largest floor plan");
-    if (ppsqft && ppsqft < 2.0) strengths.push(`Excellent value ($${ppsqft}/sqft)`);
+    if (ppsqft) strengths.push(`Value: ₹${ppsqft}/sqft`);
     if (p.year_built && p.year_built >= 2020) strengths.push(`Modern construction (${p.year_built})`);
 
     return {
@@ -239,7 +239,7 @@ export function compareProperties(properties: CandidateListing[]): ComparisonRes
 
   let summary = `Comparing ${properties.length} properties. `;
   if (cheapest) {
-    summary += `${cheapest.listing.property_name} offers the most economical rent at $${cheapest.listing.market_rent.toLocaleString()}/mo. `;
+    summary += `${cheapest.listing.property_name} offers the most economical rent at ₹${cheapest.listing.market_rent.toLocaleString("en-IN")}/mo. `;
   }
   if (largest && largest.listing.unit_id !== cheapest?.listing.unit_id) {
     summary += `Meanwhile, ${largest.listing.property_name} maximizes living area with ${largest.listing.sqft?.toLocaleString()} sqft.`;

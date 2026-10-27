@@ -3,7 +3,6 @@ import { api } from "../../api";
 import type { PublicListing } from "../../types";
 import {
   Sparkles,
-  DollarSign,
   Bed,
   CheckCircle2,
   X,
@@ -12,6 +11,8 @@ import {
   Building,
   Maximize2,
   Percent,
+  Cpu,
+  ShieldCheck,
 } from "lucide-react";
 
 interface AiMatcherModalProps {
@@ -33,8 +34,8 @@ interface ScoredRecommendation {
 }
 
 export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps) {
-  const [budget, setBudget] = useState("2000");
-  const [bedrooms, setBedrooms] = useState("1");
+  const [budget, setBudget] = useState("75000");
+  const [bedrooms, setBedrooms] = useState("2");
   const [priority, setPriority] = useState<"budget" | "space" | "balanced">("balanced");
   const [recommendations, setRecommendations] = useState<ScoredRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,26 +62,31 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-border/80 bg-card shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl glass-spec border border-emerald-500/30 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/70 p-5 px-6">
+        <div className="flex items-center justify-between border-b border-border/60 p-5 px-6 bg-card/60">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Sparkles className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <Cpu className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground">
-                AI Property Recommender
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold tracking-tight text-foreground">
+                  AI Property Recommender v2.4
+                </h2>
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
+                  Neural Commute
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Cosine vector similarity & multi-criteria matching
+                Cosine vector similarity & multi-criteria weighted scoring
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="rounded-xl p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -89,20 +95,20 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
         {/* Scrollable Container */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Query Formulation Form */}
-          <form onSubmit={handleMatch} className="space-y-4 rounded-2xl bg-muted/30 p-4 border border-border/60">
+          <form onSubmit={handleMatch} className="space-y-4 rounded-2xl bg-card/50 p-4 border border-border/60">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5">
                   Target Monthly Budget (₹)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-sm font-bold text-muted-foreground">₹</span>
+                  <span className="absolute left-3 top-2 text-sm font-bold text-emerald-400 font-mono">₹</span>
                   <input
                     type="number"
                     value={budget}
                     onChange={(e) => setBudget(e.target.value)}
-                    placeholder="e.g. 25000"
-                    className="w-full rounded-xl border border-input bg-card pl-9 pr-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+                    placeholder="e.g. 75000"
+                    className="w-full rounded-xl border border-input bg-background/80 pl-8 pr-3 py-2 text-xs text-foreground focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -112,16 +118,16 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
                   Min Bedrooms
                 </label>
                 <div className="relative">
-                  <Bed className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Bed className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                   <select
                     value={bedrooms}
                     onChange={(e) => setBedrooms(e.target.value)}
-                    className="w-full rounded-xl border border-input bg-card pl-9 pr-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+                    className="w-full rounded-xl border border-input bg-background/80 pl-9 pr-3 py-2 text-xs text-foreground focus:border-emerald-500 focus:outline-none"
                   >
-                    <option value="0">Studio (0+)</option>
-                    <option value="1">1 Bedroom</option>
-                    <option value="2">2 Bedrooms</option>
-                    <option value="3">3+ Bedrooms</option>
+                    <option value="1">1 BHK</option>
+                    <option value="2">2 BHK</option>
+                    <option value="3">3 BHK</option>
+                    <option value="4">4+ BHK</option>
                   </select>
                 </div>
               </div>
@@ -134,7 +140,7 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: "budget", label: "💰 Maximize Savings" },
-                  { id: "space", label: "📐 Maximum Living Space" },
+                  { id: "space", label: "📐 Maximum Area" },
                   { id: "balanced", label: "⚖️ Balanced Match" },
                 ].map((opt) => (
                   <button
@@ -143,7 +149,7 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
                     onClick={() => setPriority(opt.id as any)}
                     className={`rounded-xl border p-2 text-center text-xs font-medium transition-all ${
                       priority === opt.id
-                        ? "border-primary bg-primary/10 text-primary font-semibold"
+                        ? "border-emerald-500 bg-emerald-500/15 text-emerald-400 font-bold shadow-sm"
                         : "border-border text-muted-foreground hover:bg-muted"
                     }`}
                   >
@@ -156,13 +162,13 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-primary py-2.5 text-xs font-semibold text-primary-foreground shadow-md hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
+              className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 py-2.5 text-xs font-bold text-black shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
             >
               {loading ? (
-                "Calculating Vector Similarity…"
+                "Calculating Cosine Similarity & Commute Alignments…"
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" /> Generate AI Recommendations
+                  <Sparkles className="h-4 w-4 fill-black" /> Run AI Matchmaker v2.4
                 </>
               )}
             </button>
@@ -173,23 +179,23 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
             <div className="space-y-4">
               <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
                 <span>Ranked Match Results</span>
-                <span>{recommendations.length} properties evaluated</span>
+                <span>{recommendations.length} residences evaluated</span>
               </div>
 
               {recommendations.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
-                  No matching properties found. Try relaxing your budget target.
+                  No matching residences found. Try relaxing your budget target.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {recommendations.map((rec, i) => (
                     <div
                       key={rec.listing.unit_id}
-                      className="group relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border/80 bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md"
+                      className="group relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-emerald-500/50 hover:shadow-lg"
                     >
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-600 border border-emerald-500/20">
+                          <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/30 font-mono">
                             <Percent className="h-3 w-3" /> {rec.match_score}% Match
                           </span>
                           <span className="text-xs font-bold text-foreground">
@@ -203,7 +209,7 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
                           </h4>
                           <p className="text-xs text-muted-foreground">
                             ₹{rec.listing.market_rent.toLocaleString("en-IN")}/mo · {rec.listing.bedrooms}{" "}
-                            Beds · {rec.listing.bathrooms} Baths ·{" "}
+                            BHK · {rec.listing.bathrooms} Baths ·{" "}
                             {rec.listing.sqft ? `${rec.listing.sqft} sqft` : "Flexible size"}
                           </p>
                         </div>
@@ -213,9 +219,9 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
                           {rec.highlights.map((hl, idx) => (
                             <span
                               key={idx}
-                              className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground"
+                              className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[11px] font-medium text-foreground border border-border/50"
                             >
-                              <CheckCircle2 className="h-3 w-3 text-primary shrink-0" /> {hl}
+                              <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" /> {hl}
                             </span>
                           ))}
                         </div>
@@ -227,7 +233,7 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
                             onClose();
                             onApply(rec.listing);
                           }}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-black px-4 py-2 text-xs font-bold hover:from-emerald-400 hover:to-teal-400 transition-all shadow-md shadow-emerald-500/20"
                         >
                           Apply Now <ArrowRight className="h-3.5 w-3.5" />
                         </button>
