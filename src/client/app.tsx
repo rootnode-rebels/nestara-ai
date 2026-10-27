@@ -44,24 +44,13 @@ const PUBLIC_DISCOVERY: AppNavItem[] = [
   { id: "dashboard", label: "Owner & Landlord Hub", href: "/dashboard", icon: "building-2", color: "blue" },
 ];
 
-const PUBLIC_NEIGHBORHOODS: AppNavItem[] = [
-  { id: "koramangala", label: "Koramangala 4th/6th", href: "/explore?loc=Koramangala", icon: "map-pin" },
-  { id: "indiranagar", label: "Indiranagar 100ft", href: "/explore?loc=Indiranagar", icon: "map-pin" },
-  { id: "hsr", label: "HSR Layout Enclaves", href: "/explore?loc=HSR", icon: "map-pin" },
-  { id: "lavelle", label: "Lavelle Road & Central", href: "/explore?loc=Lavelle", icon: "map-pin" },
-];
-
 const TENANT_NAV: AppNavItem[] = [
   { id: "portal", label: "My Resident Portal", href: "/portal", icon: "key", color: "violet", home: true },
   { id: "explore", label: "Browse Rentals", href: "/explore", icon: "compass", color: "green" },
 ];
 
 /** A record page keeps its collection's row lit. */
-function activeFor(route: Route, currentPath: string): string {
-  if (currentPath.includes("loc=Koramangala")) return "koramangala";
-  if (currentPath.includes("loc=Indiranagar")) return "indiranagar";
-  if (currentPath.includes("loc=HSR")) return "hsr";
-  if (currentPath.includes("loc=Lavelle")) return "lavelle";
+function activeFor(route: Route): string {
   if (route.name === "property") return "properties";
   if (route.name === "tenant") return "tenants";
   return route.name;
@@ -90,11 +79,8 @@ export function App() {
   // Dynamic role-based navigation groups
   let groups: { label?: string; items: AppNavItem[] }[] = [];
   if (!auth.user) {
-    // Unauthenticated public explorer: rich discovery & neighborhood tabs
-    groups = [
-      { items: PUBLIC_DISCOVERY },
-      { label: "Prime Bengaluru Enclaves", items: PUBLIC_NEIGHBORHOODS },
-    ];
+    // Unauthenticated public explorer: main discovery and portals
+    groups = [{ items: PUBLIC_DISCOVERY }];
   } else if (auth.user.role === "tenant") {
     // Resident tenant
     groups = [{ items: TENANT_NAV }];
@@ -131,7 +117,7 @@ export function App() {
                 title="Nestara AI"
                 icon="home"
                 groups={groups}
-                active={activeFor(route, path)}
+                active={activeFor(route)}
                 onNavigate={(item) => navigate(item.href ?? (auth.user?.role === "tenant" ? "/portal" : isLandlordOrAdmin ? "/dashboard" : "/explore"))}
               />
             </div>
