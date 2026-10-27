@@ -12,12 +12,10 @@ import {
   Bath,
   Maximize2,
   MapPin,
-  CheckCircle,
   SlidersHorizontal,
   RotateCcw,
   Sparkles,
   ArrowRight,
-  Cpu,
   Train,
   Zap,
   VolumeX,
@@ -32,7 +30,7 @@ interface ExplorePageProps {
   onApply?: (listing: PublicListing) => void;
 }
 
-// Curated architectural photos matching luxury modern residences
+// Curated architectural photos for Bengaluru modern residences
 const ARCHITECTURAL_PHOTOS = [
   "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
@@ -53,11 +51,11 @@ const LIFESTYLE_TAGS = [
 
 const NEIGHBORHOOD_TABS = [
   { label: "All Bengaluru", value: "" },
-  { label: "Koramangala (4th & 6th Block)", value: "Koramangala" },
-  { label: "Indiranagar (100ft Rd Corridor)", value: "Indiranagar" },
-  { label: "HSR Layout (Sector 1-4)", value: "HSR Layout" },
-  { label: "Lavelle Road & Central", value: "Lavelle Road" },
-  { label: "Whitefield Tech Corridor", value: "Whitefield" },
+  { label: "Koramangala", value: "Koramangala" },
+  { label: "Indiranagar", value: "Indiranagar" },
+  { label: "HSR Layout", value: "HSR Layout" },
+  { label: "Lavelle Road", value: "Lavelle Road" },
+  { label: "Whitefield", value: "Whitefield" },
 ];
 
 export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
@@ -78,6 +76,15 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [isAiMatcherOpen, setIsAiMatcherOpen] = useState(false);
   const [applyListing, setApplyListing] = useState<PublicListing | null>(null);
+
+  // Sync with URL query parameters if opened via sidebar link (e.g. ?loc=Koramangala)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const loc = urlParams.get("loc");
+    if (loc) {
+      setActiveTab(loc);
+    }
+  }, []);
 
   const handleApply = (listing: PublicListing) => {
     if (onApply) {
@@ -119,7 +126,7 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchListings();
-    }, 200);
+    }, 150);
     return () => clearTimeout(timer);
   }, [fetchListings]);
 
@@ -165,69 +172,61 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
 
   return (
     <PageShell
-      title="Curated Living for Modern Bengaluru"
-      meta={`${listings.length} verified residences · Zero Brokerage`}
+      title="Curated Living in Bengaluru"
+      meta={`${listings.length} verified residences · Direct Owner Listings`}
       width="max-w-7xl"
       actions={
         <button
           onClick={() => setIsAiMatcherOpen(true)}
-          className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-xs font-bold text-black shadow-lg shadow-emerald-500/25 hover:opacity-95 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 px-3.5 py-2 text-xs font-semibold shadow-sm transition-all"
         >
-          <Sparkles className="h-3.5 w-3.5 fill-black" />
-          AI Matchmaker v2.4
+          <Sparkles className="h-3.5 w-3.5" />
+          AI Matchmaker
         </button>
       }
     >
-      {/* ── STITCH OBSIDIAN EMERALD AI HERO BANNER ────────────────────── */}
-      <section className="relative rounded-3xl glass-spec p-6 md:p-8 mb-8 overflow-hidden border border-emerald-500/25 shadow-2xl">
-        {/* Ambient Radial Backlights */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Hero Header */}
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border/50">
+      {/* ── HUMAN-CRAFTED PROPERTY SEARCH & DISCOVERY BANNER ─────────── */}
+      <section className="rounded-2xl border border-border bg-card p-6 md:p-7 mb-7 shadow-sm">
+        {/* Banner Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-border/60">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span className="text-[11px] font-bold tracking-wider text-emerald-400 uppercase">
-                AI MATCHMAKER v2.4
-              </span>
-              <span className="text-muted-foreground text-[11px]">
-                • Neural Commute Engine Active
-              </span>
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-muted text-foreground text-xs font-medium mb-2 border border-border/50">
+              <span className="w-2 h-2 rounded-full bg-emerald-600" />
+              <span>Verified Portfolios</span>
+              <span className="text-muted-foreground">• Zero Brokerage</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
               Rentals calibrated to your lifestyle and commute
             </h1>
-            <p className="text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-              Deep hyper-spatial discovery covering Koramangala, Indiranagar, HSR Layout, and Lavelle Road with verified zero-brokerage listings.
+            <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+              Curated residences across Koramangala, Indiranagar, HSR Layout, and Lavelle Road with verified leases and direct owner pricing.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Model Confidence
+              <div className="text-[11px] font-medium text-muted-foreground">
+                Match Confidence
               </div>
-              <div className="text-xl font-black text-emerald-400">99.4% Accurate</div>
+              <div className="text-base font-bold text-foreground">99.4% Accurate</div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-inner">
-              <Cpu className="h-6 w-6" />
+            <div className="h-10 w-10 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground">
+              <Sparkles className="h-4 w-4" />
             </div>
           </div>
         </div>
 
-        {/* Hero Interactive Calibration Grid */}
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 pt-6">
+        {/* Calibration Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-5">
           {/* Left Column: Lifestyle Calibration Tags (5 Cols) */}
-          <div className="lg:col-span-5 flex flex-col gap-3">
-            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-              <span>Lifestyle Calibration Tags</span>
-              <span className="text-emerald-400 font-semibold">
-                {activeLifestyleTags.length} Active
+          <div className="lg:col-span-5 flex flex-col gap-2.5">
+            <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+              <span>Lifestyle Preferences</span>
+              <span className="text-foreground text-[11px] font-normal">
+                {activeLifestyleTags.length} active
               </span>
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {LIFESTYLE_TAGS.map((tag) => {
                 const TagIcon = tag.icon;
                 const active = activeLifestyleTags.includes(tag.id);
@@ -235,30 +234,30 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
                   <button
                     key={tag.id}
                     onClick={() => toggleLifestyleTag(tag.id)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors border ${
                       active
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm shadow-emerald-500/20"
-                        : "bg-card/70 text-muted-foreground border border-border/60 hover:border-emerald-500/30 hover:text-foreground"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                     }`}
                   >
                     <TagIcon className="h-3.5 w-3.5" />
                     <span>{tag.label}</span>
-                    {active && <Check className="h-3 w-3 text-emerald-400 ml-0.5" />}
+                    {active && <Check className="h-3 w-3 ml-0.5" />}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Right Column: INR Budget Slider & Office Commute Corridor (7 Cols) */}
+          {/* Right Column: INR Budget Slider & Commute Corridor (7 Cols) */}
           <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* INR Budget Slider Box */}
-            <div className="flex flex-col justify-between p-4 rounded-2xl bg-card/60 border border-border/60 backdrop-blur-md">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+            {/* Budget Box */}
+            <div className="flex flex-col justify-between p-3.5 rounded-xl bg-muted/30 border border-border">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-muted-foreground">
                   Monthly Budget
                 </span>
-                <span className="text-sm font-extrabold text-emerald-400 font-mono">
+                <span className="text-xs font-bold text-foreground">
                   Up to ₹{Number(maxRent).toLocaleString("en-IN")}
                 </span>
               </div>
@@ -270,63 +269,62 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
                   step="5000"
                   value={maxRent}
                   onChange={(e) => setMaxRent(e.target.value)}
-                  className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer custom-slider"
+                  className="w-full h-1.5 bg-muted-foreground/20 rounded-lg appearance-none cursor-pointer custom-slider"
                 />
-                <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-2 font-mono">
+                <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-1.5">
                   <span>₹30k</span>
                   <span>₹75k</span>
                   <span>₹1.5L</span>
-                  <span className="text-emerald-400 font-bold">₹2.5L+</span>
+                  <span className="font-medium text-foreground">₹2.5L+</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
-                <span className="text-[11px] font-medium text-emerald-400/90">0% Brokerage</span>
-                <span className="text-[11px] font-semibold text-amber-400">2-Mo. Security Deposit</span>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1.5 border-t border-border/40">
+                <span>0% Brokerage</span>
+                <span className="font-medium text-foreground">2-Month Security Deposit</span>
               </div>
             </div>
 
-            {/* Commute / Hub Target */}
-            <div className="flex flex-col justify-between p-4 rounded-2xl bg-card/60 border border-border/60 backdrop-blur-md">
+            {/* Commute Corridor Target */}
+            <div className="flex flex-col justify-between p-3.5 rounded-xl bg-muted/30 border border-border">
               <div>
-                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                  <span>Office Commute Corridor</span>
-                  <span className="text-emerald-400 text-[11px] flex items-center gap-1">
-                    <Navigation className="h-3 w-3" /> Live Traffic
+                <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                  <span>Commute Target</span>
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <Navigation className="h-3 w-3 text-emerald-600" /> Real-time
                   </span>
                 </label>
                 <div className="relative mt-2">
                   <select
                     value={commuteHub}
                     onChange={(e) => setCommuteHub(e.target.value)}
-                    className="w-full py-2 pl-8 pr-3 rounded-xl bg-background/80 border border-border text-xs text-foreground focus:outline-none focus:border-emerald-500"
+                    className="w-full py-1.5 pl-7 pr-3 rounded-lg bg-card border border-input text-xs text-foreground focus:outline-none focus:border-primary"
                   >
                     <option value="Embassy TechVillage / RMZ Ecospace (Max 25 mins)">
-                      Embassy TechVillage / RMZ Ecospace (Max 25m)
+                      Embassy TechVillage / RMZ Ecospace (&lt;25m)
                     </option>
                     <option value="Indiranagar 100ft Rd / CMH Metro (Max 10 mins)">
-                      Indiranagar 100ft Rd / CMH Metro (Max 10m)
+                      Indiranagar 100ft Rd / Metro (&lt;10m)
                     </option>
                     <option value="Bagmane Tech Park / CV Raman Nagar (Max 15 mins)">
-                      Bagmane Tech Park / CV Raman Nagar (Max 15m)
+                      Bagmane Tech Park (&lt;15m)
                     </option>
                     <option value="Manyata Tech Park / Hebbal (Max 20 mins)">
-                      Manyata Tech Park / Hebbal (Max 20m)
+                      Manyata Tech Park (&lt;20m)
                     </option>
                     <option value="Electronic City Expressway Hub (Max 25 mins)">
-                      Electronic City Expressway Hub (Max 25m)
+                      Electronic City Expressway (&lt;25m)
                     </option>
                   </select>
-                  <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-emerald-400" />
+                  <MapPin className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
                 </div>
               </div>
 
-              {/* Recalibrate AI Matches Button */}
+              {/* Recalibrate Button */}
               <button
                 onClick={() => setIsAiMatcherOpen(true)}
-                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 transition-all active:scale-[0.98]"
+                className="mt-2.5 w-full py-2 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-all"
               >
-                <span className="w-2 h-2 rounded-full bg-black animate-pulse" />
-                <span>Recalibrate AI Matchmaker</span>
+                <span>Recalibrate Matchmaker</span>
                 <SlidersHorizontal className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -334,41 +332,39 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
         </div>
       </section>
 
-      {/* ── DISCOVERY TOOLBAR & NEIGHBORHOOD QUICK TABS ───────────────── */}
-      <section className="space-y-4 mb-6">
+      {/* ── NEIGHBORHOOD QUICK TABS & FILTERS ─────────────────────────── */}
+      <section className="space-y-3 mb-6">
         {/* Neighborhood Tabs */}
-        <div className="flex items-center justify-between gap-4 overflow-x-auto pb-1 scrollbar-none">
-          <div className="flex items-center gap-2">
-            {NEIGHBORHOOD_TABS.map((tab) => {
-              const active = activeTab === tab.value;
-              return (
-                <button
-                  key={tab.label}
-                  onClick={() => setActiveTab(tab.value)}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                    active
-                      ? "bg-emerald-500/15 border border-emerald-500/50 text-emerald-400 shadow-sm"
-                      : "bg-card/70 border border-border/70 hover:border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {NEIGHBORHOOD_TABS.map((tab) => {
+            const active = activeTab === tab.value;
+            return (
+              <button
+                key={tab.label}
+                onClick={() => setActiveTab(tab.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Filter Controls Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-card/60 border border-border/70 backdrop-blur-md">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-3.5 rounded-xl bg-card border border-border">
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search address, landmark, building name..."
-              className="w-full rounded-xl border border-input bg-background/80 pl-9 pr-4 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-emerald-500 focus:outline-none transition-all"
+              placeholder="Search by neighborhood, building, or address..."
+              className="w-full rounded-lg border border-input bg-background pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             />
           </div>
 
@@ -377,7 +373,7 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
             <select
               value={bedrooms}
               onChange={(e) => setBedrooms(e.target.value)}
-              className="rounded-xl border border-input bg-card px-3 py-2 text-xs text-foreground focus:border-emerald-500 focus:outline-none"
+              className="rounded-lg border border-input bg-card px-2.5 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
             >
               <option value="all">Any BHK</option>
               <option value="1">1 BHK+</option>
@@ -390,7 +386,7 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
             <select
               value={propertyType}
               onChange={(e) => setPropertyType(e.target.value)}
-              className="rounded-xl border border-input bg-card px-3 py-2 text-xs text-foreground focus:border-emerald-500 focus:outline-none"
+              className="rounded-lg border border-input bg-card px-2.5 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
             >
               <option value="all">All Types</option>
               <option value="multi_family">Apartment / Penthouse</option>
@@ -400,15 +396,15 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
             </select>
 
             {/* Zero Brokerage Badge */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>0% Direct Owner</span>
+            <div className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs font-medium border border-border">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+              <span>0% Brokerage</span>
             </div>
 
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-border bg-card text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border bg-card text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <RotateCcw className="h-3 w-3" />
                 Reset
@@ -418,196 +414,180 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
         </div>
       </section>
 
-      {/* ── CURATED APARTMENT GRID (3 COLUMNS) ───────────────────────── */}
+      {/* ── PROPERTY LISTINGS GRID ───────────────────────────────────── */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="h-96 rounded-3xl border border-border bg-card/60 animate-pulse overflow-hidden space-y-4"
+              className="h-88 rounded-2xl border border-border bg-card animate-pulse overflow-hidden space-y-3"
             >
-              <div className="h-56 bg-muted/60" />
-              <div className="p-5 space-y-3">
-                <div className="h-5 w-2/3 bg-muted rounded-md" />
-                <div className="h-4 w-1/3 bg-muted rounded-md" />
-                <div className="h-10 bg-muted rounded-xl" />
+              <div className="h-48 bg-muted" />
+              <div className="p-4 space-y-2.5">
+                <div className="h-4 w-2/3 bg-muted rounded" />
+                <div className="h-3 w-1/3 bg-muted rounded" />
+                <div className="h-8 bg-muted rounded-lg" />
               </div>
             </div>
           ))}
         </div>
       ) : listings.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border/80 p-12 text-center space-y-4 bg-card/40">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-            <Building2 className="h-7 w-7" />
+        <div className="rounded-2xl border border-dashed border-border p-10 text-center space-y-3 bg-card">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            <Building2 className="h-6 w-6" />
           </div>
-          <h3 className="text-lg font-bold text-foreground">
+          <h3 className="text-base font-bold text-foreground">
             No properties matching your requirements
           </h3>
-          <p className="text-xs text-muted-foreground max-w-md mx-auto">
-            Try adjusting your budget slider or bedroom requirements, or reset the filters to see all available curated residences in Bengaluru.
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            Try adjusting your budget or bedroom requirements, or reset the filters to see all available properties.
           </p>
           <button
             onClick={resetFilters}
-            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-5 py-2 text-xs font-bold text-black hover:bg-emerald-400 transition-all shadow-md"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
           >
             <RotateCcw className="h-3.5 w-3.5" /> Reset Filters
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {listings.map((item, index) => {
             const selected = isSelected(item.unit_id);
             const photoUrl = ARCHITECTURAL_PHOTOS[index % ARCHITECTURAL_PHOTOS.length];
-            // Compute realistic AI Match Score based on index & features
             const matchScore = 98 - (index % 5) * 2;
             const maintenance = Math.round(item.market_rent * 0.05);
 
             return (
               <article
                 key={item.unit_id}
-                className={`group rounded-3xl glass-spec overflow-hidden glass-card-hover flex flex-col justify-between border transition-all duration-300 ${
+                className={`group rounded-2xl bg-card overflow-hidden flex flex-col justify-between border transition-all duration-200 ${
                   selected
-                    ? "border-emerald-500 ring-2 ring-emerald-500/25 shadow-xl shadow-emerald-500/10"
-                    : "border-border/70 hover:border-emerald-500/40"
+                    ? "border-primary ring-1 ring-primary shadow-sm"
+                    : "border-border hover:border-muted-foreground/40 hover:shadow-md"
                 }`}
               >
                 <div>
-                  {/* Architectural Image Container with Overlays */}
-                  <div className="relative h-60 w-full overflow-hidden bg-muted">
+                  {/* Photo Container */}
+                  <div className="relative h-52 w-full overflow-hidden bg-muted">
                     <img
                       src={photoUrl}
                       alt={item.unit_name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                      className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300 ease-out"
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-black/50" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-                    {/* AI Match Chip (Top-Left) */}
-                    <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-                      <div className="px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border border-emerald-500/50 flex items-center gap-1.5 shadow-lg">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-[11px] font-black tracking-wide text-emerald-400 font-mono">
-                          {matchScore}% MATCH
-                        </span>
-                      </div>
-                      <div className="px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur-md border border-white/10 text-[10px] text-zinc-300 max-w-[210px] leading-tight">
-                        AI Note: Near Indiranagar / Koramangala corridor & sound-insulated
-                      </div>
+                    {/* Match Score Badge (Top-Left) */}
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/75 backdrop-blur text-white text-xs font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span>{matchScore}% Match</span>
                     </div>
 
-                    {/* Top-Right: 0% Brokerage & Save */}
-                    <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-                      <span className="px-2.5 py-1 rounded-full bg-amber-500/20 backdrop-blur-md border border-amber-500/50 text-[10px] font-bold text-amber-300 tracking-wider">
-                        0% BROKERAGE
+                    {/* Zero Brokerage Badge (Top-Right) */}
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded bg-black/75 backdrop-blur text-amber-300 text-[10px] font-semibold">
+                        0% Brokerage
                       </span>
-                      <button
-                        type="button"
-                        className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-zinc-300 hover:text-emerald-400 transition-colors"
-                      >
-                        <Heart className="h-4 w-4" />
-                      </button>
                     </div>
 
-                    {/* Property Type Badge (Bottom Right of Image) */}
-                    <div className="absolute bottom-3 right-3 z-10">
-                      <span className="capitalize rounded-lg bg-black/70 backdrop-blur-md border border-white/10 px-2.5 py-0.5 text-[10px] font-semibold text-zinc-200">
+                    {/* Type Badge (Bottom-Right) */}
+                    <div className="absolute bottom-2.5 right-2.5">
+                      <span className="capitalize rounded bg-black/75 backdrop-blur px-2 py-0.5 text-[10px] font-medium text-white">
                         {item.property_type.replace("_", " ")}
                       </span>
                     </div>
                   </div>
 
-                  {/* Card Content Body */}
-                  <div className="p-5">
-                    {/* Title & Landmark */}
-                    <div className="mb-3">
-                      <h3 className="text-base font-bold text-foreground group-hover:text-emerald-400 transition-colors leading-snug">
+                  {/* Body */}
+                  <div className="p-4 space-y-2.5">
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-snug">
                         {item.unit_name} — {item.property_name}
                       </h3>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <MapPin className="h-3 w-3 text-muted-foreground/70 shrink-0" />
                         <span>
-                          {item.address || "Prime Enclave"},{" "}
+                          {item.address || "Bengaluru Prime Enclave"},{" "}
                           {item.city || "Bengaluru"}
                         </span>
                       </p>
                     </div>
 
                     {/* Specs Row */}
-                    <div className="flex items-center justify-around py-2.5 px-3 rounded-2xl bg-card/80 border border-border/50 text-xs text-foreground mb-3 font-medium">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-around py-2 px-2.5 rounded-lg bg-muted/40 border border-border/50 text-xs text-foreground font-medium">
+                      <div className="flex items-center gap-1">
                         <Bed className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{item.bedrooms} BHK</span>
                       </div>
                       <span className="text-border">•</span>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <Bath className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{item.bathrooms} Baths</span>
                       </div>
                       <span className="text-border">•</span>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <Maximize2 className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{item.sqft ? item.sqft.toLocaleString() : "1,850"} sq.ft</span>
                       </div>
                     </div>
 
                     {/* Amenity Badges */}
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      <span className="px-2 py-0.5 rounded-md bg-muted/60 border border-border/40 text-[10px] font-medium text-muted-foreground">
+                    <div className="flex flex-wrap gap-1">
+                      <span className="px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground">
                         100% Power Backup
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-muted/60 border border-border/40 text-[10px] font-medium text-muted-foreground">
+                      <span className="px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground">
                         Private EV Charger
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-muted/60 border border-border/40 text-[10px] font-medium text-muted-foreground">
+                      <span className="px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground">
                         Pet Friendly
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Card Footer: Pricing & Actions */}
-                <div className="p-5 pt-0 border-t border-border/40">
-                  <div className="flex items-baseline justify-between pt-3 pb-3">
+                {/* Footer: Price & Actions */}
+                <div className="p-4 pt-0 border-t border-border/50">
+                  <div className="flex items-baseline justify-between pt-2.5 pb-2.5">
                     <div>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-black text-foreground font-mono">
+                        <span className="text-lg font-bold text-foreground">
                           ₹{item.market_rent.toLocaleString("en-IN")}
                         </span>
-                        <span className="text-xs text-muted-foreground font-medium">/ month</span>
+                        <span className="text-xs text-muted-foreground">/ month</span>
                       </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                      <div className="text-[10px] text-muted-foreground">
                         + ₹{maintenance.toLocaleString("en-IN")} maint • 2 Mo. Deposit
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                        Ready to move
-                      </span>
-                    </div>
+                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/40">
+                      Available Now
+                    </span>
                   </div>
 
-                  {/* Dual Action Buttons */}
+                  {/* Dual Action Controls */}
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => toggleComparison(item)}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center transition-colors ${
                         selected
-                          ? "bg-emerald-500 text-black shadow-sm"
+                          ? "bg-primary text-primary-foreground font-semibold shadow-sm"
                           : "border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
                       }`}
-                      title={selected ? "Remove from comparison" : "Add to comparison"}
+                      title={selected ? "Selected for comparison" : "Compare"}
                     >
-                      <SlidersHorizontal className="h-4 w-4" />
+                      <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
+                      <span>{selected ? "Selected" : "Compare"}</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleApply(item)}
-                      className="flex-1 py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all"
+                      className="flex-1 py-1.5 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold flex items-center justify-center gap-1 shadow-sm transition-all"
                     >
                       <span>Schedule Visit / Apply</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      <ArrowRight className="h-3 w-3" />
                     </button>
                   </div>
                 </div>
@@ -617,17 +597,17 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
         </div>
       )}
 
-      {/* ── FLOATING BOTTOM COMPARISON DOCK ──────────────────────────── */}
+      {/* ── CLEAN COMPARISON DOCK ────────────────────────────────────── */}
       {selectedForComparison.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-2xl glass-spec border border-emerald-500/40 px-5 py-3 shadow-2xl emerald-glow animate-in slide-in-from-bottom duration-300">
-          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-black text-[10px] font-black">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 rounded-xl bg-card border border-border px-4 py-2.5 shadow-xl animate-in slide-in-from-bottom duration-200">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
               {selectedForComparison.length}
             </span>
-            <span>of 3 residences selected</span>
+            <span>of 3 properties selected</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pl-2 border-l border-border">
             <button
               onClick={() => setSelectedForComparison([])}
               className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 font-medium"
@@ -636,7 +616,7 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
             </button>
             <button
               onClick={() => setIsCompareModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-1.5 text-xs font-bold text-black shadow-md hover:bg-emerald-400 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all"
             >
               <span>Compare Side-by-Side</span>
               <ArrowRight className="h-3.5 w-3.5" />

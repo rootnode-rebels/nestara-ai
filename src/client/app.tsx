@@ -19,7 +19,7 @@ import { RentPage } from "./components/rent/rent-page";
 import { MaintenancePage } from "./components/maintenance/maintenance-page";
 import { SettingsPage } from "./components/settings/settings-page";
 import { Button } from "./components/ui/button";
-import { Lock, ShieldAlert } from "lucide-react";
+import { ShieldCheck, Lock } from "lucide-react";
 
 const LANDLORD_PORTFOLIO: AppNavItem[] = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", home: true },
@@ -38,13 +38,22 @@ const LANDLORD_ADMIN: AppNavItem[] = [
   { id: "settings", label: "Settings", href: "/settings", icon: "settings" },
 ];
 
-const PUBLIC_NAV: AppNavItem[] = [
-  { id: "explore", label: "Explore Rentals", href: "/explore", icon: "compass", color: "sky", home: true },
+const PUBLIC_DISCOVERY: AppNavItem[] = [
+  { id: "explore", label: "Discover Residences", href: "/explore", icon: "compass", color: "green", home: true },
+  { id: "portal", label: "Resident Portal", href: "/portal", icon: "key", color: "violet" },
+  { id: "dashboard", label: "Owner & Landlord Hub", href: "/dashboard", icon: "building-2", color: "blue" },
+];
+
+const PUBLIC_NEIGHBORHOODS: AppNavItem[] = [
+  { id: "koramangala", label: "Koramangala 4th/6th", href: "/explore?loc=Koramangala", icon: "map-pin", color: "green" },
+  { id: "indiranagar", label: "Indiranagar 100ft", href: "/explore?loc=Indiranagar", icon: "map-pin", color: "green" },
+  { id: "hsr", label: "HSR Layout Enclaves", href: "/explore?loc=HSR", icon: "map-pin", color: "green" },
+  { id: "lavelle", label: "Lavelle Road & Central", href: "/explore?loc=Lavelle", icon: "map-pin", color: "green" },
 ];
 
 const TENANT_NAV: AppNavItem[] = [
-  { id: "portal", label: "Resident Portal", href: "/portal", icon: "key", color: "violet", home: true },
-  { id: "explore", label: "Browse Rentals", href: "/explore", icon: "compass", color: "sky" },
+  { id: "portal", label: "My Resident Portal", href: "/portal", icon: "key", color: "violet", home: true },
+  { id: "explore", label: "Browse Rentals", href: "/explore", icon: "compass", color: "green" },
 ];
 
 /** A record page keeps its collection's row lit. */
@@ -77,8 +86,11 @@ export function App() {
   // Dynamic role-based navigation groups
   let groups: { label?: string; items: AppNavItem[] }[] = [];
   if (!auth.user) {
-    // Unauthenticated public explorer
-    groups = [{ items: PUBLIC_NAV }];
+    // Unauthenticated public explorer: rich discovery & neighborhood tabs
+    groups = [
+      { items: PUBLIC_DISCOVERY },
+      { label: "Prime Bengaluru Enclaves", items: PUBLIC_NEIGHBORHOODS },
+    ];
   } else if (auth.user.role === "tenant") {
     // Resident tenant
     groups = [{ items: TENANT_NAV }];
@@ -109,14 +121,38 @@ export function App() {
     <AuthContext.Provider value={auth}>
       <AppContext.Provider value={state}>
         <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground md:flex-row">
-          <div className="flex shrink-0 flex-col justify-between border-r border-border bg-card">
-            <AppNav
-              title="Nestara AI"
-              icon="home"
-              groups={groups}
-              active={activeFor(route)}
-              onNavigate={(item) => navigate(item.href ?? (auth.user?.role === "tenant" ? "/portal" : isLandlordOrAdmin ? "/dashboard" : "/explore"))}
-            />
+          <div className="flex shrink-0 flex-col justify-between border-r border-border bg-card w-full md:w-64">
+            <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+              <AppNav
+                title="Nestara AI"
+                icon="home"
+                groups={groups}
+                active={activeFor(route)}
+                onNavigate={(item) => navigate(item.href ?? (auth.user?.role === "tenant" ? "/portal" : isLandlordOrAdmin ? "/dashboard" : "/explore"))}
+              />
+            </div>
+
+            {/* Informational Sidebar Trust & Assistance Box */}
+            <div className="hidden md:flex flex-col gap-2 p-3 m-3 rounded-xl border border-border bg-muted/40 text-xs">
+              <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>Nestara Verified Living</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                0% brokerage on all curated residences. Standard 2-month deposit norm.
+              </p>
+              <div className="pt-2 border-t border-border/50 space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Bengaluru Units</span>
+                  <span className="font-semibold text-foreground">28 Verified</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Concierge Desk</span>
+                  <span className="font-medium text-emerald-700 dark:text-emerald-400">Available</span>
+                </div>
+              </div>
+            </div>
+
             <div className="hidden md:block p-3 border-t border-border/60">
               <UserNav />
             </div>

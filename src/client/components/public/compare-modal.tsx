@@ -254,7 +254,7 @@ export function CompareModal({
                               onClose();
                               onApply(item.listing);
                             }}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-black px-4 py-2 text-xs font-bold hover:from-emerald-400 hover:to-teal-400 transition-all shadow-md shadow-emerald-500/20"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 px-3.5 py-1.5 text-xs font-semibold transition-all shadow-sm"
                           >
                             Apply Now <ArrowRight className="h-3.5 w-3.5" />
                           </button>

@@ -162,13 +162,13 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 py-2.5 text-xs font-bold text-black shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
+              className="w-full rounded-xl bg-primary hover:bg-primary/90 py-2.5 text-xs font-semibold text-primary-foreground shadow-sm transition-all flex items-center justify-center gap-2"
             >
               {loading ? (
                 "Calculating Cosine Similarity & Commute Alignments…"
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4 fill-black" /> Run AI Matchmaker v2.4
+                  <Sparkles className="h-4 w-4" /> Run AI Matchmaker
                 </>
               )}
             </button>
@@ -233,7 +233,7 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
                             onClose();
                             onApply(rec.listing);
                           }}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-black px-4 py-2 text-xs font-bold hover:from-emerald-400 hover:to-teal-400 transition-all shadow-md shadow-emerald-500/20"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 px-3.5 py-2 text-xs font-semibold transition-all shadow-sm"
                         >
                           Apply Now <ArrowRight className="h-3.5 w-3.5" />
                         </button>

@@ -14,7 +14,8 @@ export type Route =
   | { name: "settings" }
   | { name: "not-found" };
 
-function parse(path: string): Route {
+function parse(rawPath: string): Route {
+  const path = rawPath.split("?")[0];
   if (path === "/" || path === "/dashboard") return { name: "dashboard" };
   if (path === "/explore" || path === "/listings") return { name: "explore" };
   if (path === "/portal" || path === "/resident") return { name: "portal" };
