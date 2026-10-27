@@ -431,10 +431,15 @@ app.post("/api/auth/register", async (c) => {
     return c.json({ error: "Unable to register with this email address. Please sign in or try another email." }, 409);
   }
 
+  // Auto-link to existing tenant record if matching email exists
+  const matchingTenant = await get<{ id: number }>("SELECT id FROM tenants WHERE lower(email) = ?", [normalizedEmail]);
+  const finalTenantId = tenant_id ?? matchingTenant?.id ?? null;
+  const finalRole = matchingTenant ? "tenant" : assignedRole;
+
   const { hash, salt } = await hashPassword(password);
   await run(
-    "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id) VALUES (?, ?, ?, ?, ?, ?)",
-    [normalizedEmail, hash, salt, full_name.trim(), assignedRole, tenant_id ?? null]
+    "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, ?, ?, 1)",
+    [normalizedEmail, hash, salt, full_name.trim(), finalRole, finalTenantId]
   );
 
   const user = await get<UserRecord>("SELECT * FROM users WHERE lower(email) = ?", [normalizedEmail]);
@@ -913,7 +918,24 @@ app.post("/api/tenants", async (c) => {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [d.first_name, d.last_name, d.email ?? null, d.phone ?? null, d.date_of_birth ?? null, d.emergency_contact ?? null, d.employer ?? null, d.monthly_income ?? null, d.notes ?? null],
   );
-  const row = await get("SELECT * FROM tenants WHERE id = ?", [result.lastInsertRowid]);
+  const tenantId = Number(result.lastInsertRowid);
+
+  // Auto-provision tenant login account if email is provided
+  if (d.email) {
+    const normalizedEmail = d.email.trim().toLowerCase();
+    const existingUser = await get<{ id: number }>("SELECT id FROM users WHERE lower(email) = ?", [normalizedEmail]);
+    if (!existingUser) {
+      const { hash, salt } = await hashPassword("Password123!");
+      await run(
+        "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, 'tenant', ?, 1)",
+        [normalizedEmail, hash, salt, `${d.first_name} ${d.last_name}`.trim(), tenantId]
+      );
+    } else {
+      await run("UPDATE users SET tenant_id = ?, role = 'tenant' WHERE id = ?", [tenantId, existingUser.id]);
+    }
+  }
+
+  const row = await get("SELECT * FROM tenants WHERE id = ?", [tenantId]);
   return c.json({ tenant: row }, 201);
 });
 
@@ -1001,6 +1023,28 @@ app.post("/api/leases", async (c) => {
   if ((d.status ?? "active") === "active") {
     await run("UPDATE units SET status = 'occupied' WHERE id = ?", [d.unit_id]);
   }
+
+  // Ensure assigned tenant has active user login credentials
+  if (d.primary_tenant_id) {
+    const t = await get<{ id: number; email: string | null; first_name: string; last_name: string }>(
+      "SELECT id, email, first_name, last_name FROM tenants WHERE id = ?",
+      [d.primary_tenant_id]
+    );
+    if (t?.email) {
+      const normalizedEmail = t.email.trim().toLowerCase();
+      const existingUser = await get<{ id: number }>("SELECT id FROM users WHERE lower(email) = ?", [normalizedEmail]);
+      if (!existingUser) {
+        const { hash, salt } = await hashPassword("Password123!");
+        await run(
+          "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, 'tenant', ?, 1)",
+          [normalizedEmail, hash, salt, `${t.first_name} ${t.last_name}`.trim(), t.id]
+        );
+      } else {
+        await run("UPDATE users SET tenant_id = ?, role = 'tenant' WHERE id = ?", [t.id, existingUser.id]);
+      }
+    }
+  }
+
   const row = await get(`${LEASE_SELECT} WHERE l.id = ?`, [result.lastInsertRowid]);
   return c.json({ lease: row }, 201);
 });
