@@ -196,17 +196,26 @@ async function ensureSeeded(): Promise<void> {
       }
     }
 
-    const usersCount = await get<{ n: number }>("SELECT COUNT(*) AS n FROM users");
-    if ((usersCount?.n ?? 0) === 0) {
+    const adminUser = await get<{ id: number }>("SELECT id FROM users WHERE email = 'admin@nestara.ai'");
+    if (!adminUser) {
+      const { hash, salt } = await hashPassword("Admin123!");
+      await run(
+        "INSERT INTO users (email, password_hash, salt, full_name, role, token_version) VALUES (?, ?, ?, ?, ?, ?)",
+        ["admin@nestara.ai", hash, salt, "Platform Administrator", "admin", 1]
+      );
+    }
+
+    const demoUser = await get<{ id: number }>("SELECT id FROM users WHERE email = 'demo@nestara.ai'");
+    if (!demoUser) {
       const { hash, salt } = await hashPassword("Password123!");
       await run(
         "INSERT INTO users (email, password_hash, salt, full_name, role, token_version) VALUES (?, ?, ?, ?, ?, ?)",
         ["demo@nestara.ai", hash, salt, "Portfolio Manager", "landlord", 1]
       );
-    } else {
-      // Ensure token_version column exists on existing databases (SEC-07)
-      await run("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1").catch(() => {});
     }
+
+    // Ensure token_version column exists on existing databases (SEC-07)
+    await run("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1").catch(() => {});
   } catch {
     // A cold database mid-migration, or a table this build has not created
     // yet: the next request retries. Never fail a request over sample data.
