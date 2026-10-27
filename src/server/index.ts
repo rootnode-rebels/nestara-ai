@@ -125,33 +125,33 @@ app.use("/api/public/apply", rateLimiter({ max: 15, windowMs: 30 * 60 * 1000, ke
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   default_rent_due_day: "1",
-  late_fee_amount: "50",
+  late_fee_amount: "500",
   late_fee_grace_days: "5",
-  currency: "USD",
+  currency: "INR",
 };
 
 const DEMO_PROPERTIES: Array<[string, string, string, string, string, string, string]> = [
-  ["Oakwood Estate", "single_family", "210 Oakwood Ln", "Austin", "TX", "78704", "emerald"],
-  ["Honeybee Hideaway", "single_family", "88 Bramble Ct", "Austin", "TX", "78704", "amber"],
-  ["308 Mission Apartments", "multi_family", "308 Mission St", "Austin", "TX", "78702", "sky"],
-  ["Skyline Tower Residences", "condo", "500 Colorado St", "Austin", "TX", "78701", "violet"],
+  ["Oakwood Residences", "single_family", "210 Oakwood Rd, Koramangala", "Bengaluru", "KA", "560034", "emerald"],
+  ["Honeybee Haven", "single_family", "88 100ft Rd, Indiranagar", "Bengaluru", "KA", "560038", "amber"],
+  ["308 Mission Heights", "multi_family", "308 Whitefield Main Rd", "Bengaluru", "KA", "560066", "sky"],
+  ["Skyline Tower Residences", "condo", "500 Outer Ring Rd, HSR Layout", "Bengaluru", "KA", "560102", "violet"],
 ];
 
 /** property index (into DEMO_PROPERTIES), name, beds, baths, sqft, rent, status */
 const DEMO_UNITS: Array<[number, string, number, number, number, number, string]> = [
-  [0, "Main house", 3, 2, 1450, 2300, "occupied"],
-  [1, "Main house", 2, 1, 980, 1700, "vacant"],
-  [2, "Unit 1", 1, 1, 620, 1450, "occupied"],
-  [2, "Unit 2", 1, 1, 620, 1450, "vacant"],
-  [2, "Unit 3", 2, 1, 850, 1850, "vacant"],
-  [3, "Suite 12B", 2, 2, 1100, 2400, "vacant"],
+  [0, "Main Villa", 3, 2, 1450, 35000, "occupied"],
+  [1, "Garden House", 2, 1, 980, 22000, "vacant"],
+  [2, "Unit 1", 1, 1, 620, 18000, "occupied"],
+  [2, "Unit 2", 1, 1, 620, 18500, "vacant"],
+  [2, "Unit 3", 2, 1, 850, 25000, "vacant"],
+  [3, "Suite 12B", 2, 2, 1100, 38000, "vacant"],
 ];
 
 
 const DEMO_VENDORS: Array<[string, string, string, string]> = [
-  ["Emerald Pool Service", "general", "512-555-0144", "emerald"],
-  ["Hill Country Plumbing", "plumber", "512-555-0188", "sky"],
-  ["Bright Spark Electric", "electrician", "512-555-0102", "amber"],
+  ["Emerald Facility Services", "general", "+91 98450 01144", "emerald"],
+  ["Urban Fix Plumbing", "plumber", "+91 98450 01188", "sky"],
+  ["Bright Spark Electricals", "electrician", "+91 98450 01102", "amber"],
 ];
 
 let seeded = false; // per-isolate fast path; the COUNT re-checks are cheap
@@ -163,6 +163,8 @@ async function ensureSeeded(): Promise<void> {
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       await run("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", [key, value]);
     }
+    // Migrate any existing USD default to INR
+    await run("UPDATE settings SET value = 'INR' WHERE key = 'currency' AND value = 'USD'").catch(() => {});
 
     const props = await get<{ n: number }>("SELECT COUNT(*) AS n FROM properties");
     if ((props?.n ?? 0) === 0) {

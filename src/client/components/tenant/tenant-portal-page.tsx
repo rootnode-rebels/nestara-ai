@@ -231,7 +231,7 @@ export function TenantPortalPage({ navigate }: { navigate: (to: string) => void 
               <div className="rounded-2xl bg-card border border-border/70 p-4 text-right">
                 <span className="text-xs text-muted-foreground font-medium">Monthly Rent</span>
                 <div className="text-2xl font-black text-foreground">
-                  ${lease.monthly_rent.toLocaleString()}
+                  ₹{lease.monthly_rent.toLocaleString("en-IN")}
                 </div>
                 <span className="text-[11px] text-muted-foreground">
                   Due on day {lease.rent_due_day} of each month
@@ -251,7 +251,7 @@ export function TenantPortalPage({ navigate }: { navigate: (to: string) => void 
               </div>
               <div className="rounded-xl bg-background/50 p-3 border border-border/40">
                 <span className="text-muted-foreground block text-[11px]">Security Deposit</span>
-                <span className="font-semibold text-foreground">${lease.deposit.toLocaleString()}</span>
+                <span className="font-semibold text-foreground">₹{lease.deposit.toLocaleString("en-IN")}</span>
               </div>
               <div className="rounded-xl bg-background/50 p-3 border border-border/40">
                 <span className="text-muted-foreground block text-[11px]">Late Fee Grace</span>
@@ -286,7 +286,7 @@ export function TenantPortalPage({ navigate }: { navigate: (to: string) => void 
                       </div>
                       <div className="text-right space-y-1">
                         <span className="font-semibold text-foreground block">
-                          ${ch.amount.toLocaleString()}
+                          ₹{ch.amount.toLocaleString("en-IN")}
                         </span>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold border ${

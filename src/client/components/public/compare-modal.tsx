@@ -153,7 +153,7 @@ export function CompareModal({
                           key={item.listing.unit_id}
                           className="py-3.5 px-4 text-center font-bold text-foreground"
                         >
-                          ${item.listing.market_rent.toLocaleString()}
+                          ₹{item.listing.market_rent.toLocaleString("en-IN")}
                           {item.is_best_price && (
                             <span className="ml-2 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 border border-emerald-500/20">
                               Best Price
@@ -199,7 +199,7 @@ export function CompareModal({
                       </td>
                       {data.items.map((item) => (
                         <td key={item.listing.unit_id} className="py-3.5 px-4 text-center">
-                          {item.price_per_sqft ? `$${item.price_per_sqft.toFixed(2)}/sqft` : "—"}
+                          {item.price_per_sqft ? `₹${item.price_per_sqft.toFixed(2)}/sqft` : "—"}
                         </td>
                       ))}
                     </tr>

@@ -5,6 +5,7 @@ import { useRouter, type Route } from "./hooks/use-router";
 import { AppContext } from "./context";
 import { AuthContext, useAuthProvider } from "./hooks/use-auth";
 import { AuthModal } from "./components/auth/auth-modal";
+import { UserNav } from "./components/auth/user-nav";
 import { ErrorBanner } from "./components/error-banner";
 import { ExplorePage } from "./components/public/explore-page";
 import { TenantPortalPage } from "./components/tenant/tenant-portal-page";
@@ -17,34 +18,33 @@ import { LeasesPage } from "./components/leases/leases-page";
 import { RentPage } from "./components/rent/rent-page";
 import { MaintenancePage } from "./components/maintenance/maintenance-page";
 import { SettingsPage } from "./components/settings/settings-page";
+import { Button } from "./components/ui/button";
+import { Lock, ShieldAlert } from "lucide-react";
 
-/**
- * The navigation, defined once.
- *
- * Opened directly, <AppNav> paints this as the app's own rail; inside the
- * Clawnify dashboard it paints nothing and hands the same list to the host, so
- * the user sees one nav rather than two. Every record type owns a colour and
- * keeps it on its tile wherever the type appears.
- *
- * Icons come from the platform's TILE_ICONS library — a name outside it draws
- * as a plain dot in the dashboard.
- */
-const PORTFOLIO: AppNavItem[] = [
-  // Not drawn as a row: the app's name opens it (the brand row standalone, the
-  // app's own header in the dashboard).
+const LANDLORD_PORTFOLIO: AppNavItem[] = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", home: true },
-  { id: "explore", label: "Explore & Search", href: "/explore", icon: "compass", color: "sky" },
-  { id: "portal", label: "Resident Portal", href: "/portal", icon: "key", color: "violet" },
+  { id: "explore", label: "Public Listings", href: "/explore", icon: "compass", color: "sky" },
   { id: "properties", label: "Properties", href: "/properties", icon: "building-2", color: "green" },
   { id: "tenants", label: "Tenants", href: "/tenants", icon: "users", color: "blue" },
   { id: "leases", label: "Leases", href: "/leases", icon: "clipboard-list", color: "violet" },
 ];
-const OPERATIONS: AppNavItem[] = [
-  { id: "rent", label: "Rent", href: "/rent", icon: "dollar-sign", color: "amber" },
+
+const LANDLORD_OPERATIONS: AppNavItem[] = [
+  { id: "rent", label: "Rent Ledger", href: "/rent", icon: "dollar-sign", color: "amber" },
   { id: "maintenance", label: "Maintenance", href: "/maintenance", icon: "list-checks", color: "orange" },
 ];
-const ADMIN: AppNavItem[] = [
+
+const LANDLORD_ADMIN: AppNavItem[] = [
   { id: "settings", label: "Settings", href: "/settings", icon: "settings" },
+];
+
+const PUBLIC_NAV: AppNavItem[] = [
+  { id: "explore", label: "Explore Rentals", href: "/explore", icon: "compass", color: "sky", home: true },
+];
+
+const TENANT_NAV: AppNavItem[] = [
+  { id: "portal", label: "Resident Portal", href: "/portal", icon: "key", color: "violet", home: true },
+  { id: "explore", label: "Browse Rentals", href: "/explore", icon: "compass", color: "sky" },
 ];
 
 /** A record page keeps its collection's row lit. */
@@ -59,37 +59,92 @@ export function App() {
   const auth = useAuthProvider();
   const { path, route, navigate } = useRouter();
 
+  // Route visitors appropriately based on authentication state
+  useEffect(() => {
+    if (auth.loading) return;
+    if (!auth.user && (path === "/" || path === "/dashboard")) {
+      navigate("/explore");
+    } else if (auth.user?.role === "tenant" && (path === "/" || path === "/dashboard")) {
+      navigate("/portal");
+    }
+  }, [auth.loading, auth.user, path, navigate]);
+
   // Lets the dashboard restore this exact screen on reload.
   useEffect(() => {
     reportLocation(path);
   }, [path]);
 
-  const groups = [
-    { items: PORTFOLIO },
-    { label: "Operations", items: OPERATIONS },
-    { label: "Admin", items: ADMIN },
-  ];
+  // Dynamic role-based navigation groups
+  let groups: { label?: string; items: AppNavItem[] }[] = [];
+  if (!auth.user) {
+    // Unauthenticated public explorer
+    groups = [{ items: PUBLIC_NAV }];
+  } else if (auth.user.role === "tenant") {
+    // Resident tenant
+    groups = [{ items: TENANT_NAV }];
+  } else {
+    // Landlord / Administrator
+    groups = [
+      { items: LANDLORD_PORTFOLIO },
+      { label: "Operations", items: LANDLORD_OPERATIONS },
+      { label: "Admin", items: LANDLORD_ADMIN },
+    ];
+  }
+
+  // Permission checks for guarded pages
+  const isLandlordOrAdmin = auth.user?.role === "landlord" || auth.user?.role === "admin";
+  const isBackOfficeRoute = [
+    "dashboard",
+    "properties",
+    "property",
+    "tenants",
+    "tenant",
+    "leases",
+    "rent",
+    "maintenance",
+    "settings",
+  ].includes(route.name);
 
   return (
     <AuthContext.Provider value={auth}>
       <AppContext.Provider value={state}>
         <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground md:flex-row">
-          {/* flex, so the SDK's <aside> stretches to the row height as a direct
-              child would. Below md the SDK lays it out as a scrolling strip, which
-              the flex-col above puts ABOVE the content rather than beside it. */}
-          <div className="flex shrink-0">
+          <div className="flex shrink-0 flex-col justify-between border-r border-border bg-card">
             <AppNav
               title="Nestara AI"
               icon="home"
               groups={groups}
               active={activeFor(route)}
-              onNavigate={(item) => navigate(item.href ?? "/dashboard")}
+              onNavigate={(item) => navigate(item.href ?? (auth.user?.role === "tenant" ? "/portal" : isLandlordOrAdmin ? "/dashboard" : "/explore"))}
             />
+            <div className="hidden md:block p-3 border-t border-border/60">
+              <UserNav />
+            </div>
           </div>
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {state.loading ? (
               <div className="flex flex-1 items-center justify-center text-muted-foreground">
                 Loading…
+              </div>
+            ) : isBackOfficeRoute && !isLandlordOrAdmin ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center max-w-md mx-auto">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20">
+                  <Lock className="h-7 w-7" />
+                </div>
+                <div className="space-y-1.5">
+                  <h2 className="text-xl font-bold tracking-tight text-foreground">
+                    Landlord & Admin Access Only
+                  </h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    This section is reserved for verified property owners and managers. Please sign in with your landlord account to access management ledgers and controls.
+                  </p>
+                </div>
+                <div className="flex gap-2.5 pt-2">
+                  <Button onClick={auth.openAuthModal}>Sign In</Button>
+                  <Button variant="outline" onClick={() => navigate("/explore")}>
+                    Browse Rentals
+                  </Button>
+                </div>
               </div>
             ) : (
               <>

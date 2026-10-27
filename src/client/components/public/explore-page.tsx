@@ -164,13 +164,13 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
           {/* Budget Filter */}
           <div className="rounded-xl border border-border/60 bg-background/50 p-3">
             <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
-              <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
-              Monthly Budget (Max)
+              <span className="font-bold text-emerald-600 text-sm">₹</span>
+              Max Monthly Budget (₹)
             </label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                placeholder="Max rent"
+                placeholder="e.g. 25000"
                 value={maxRent}
                 onChange={(e) => setMaxRent(e.target.value)}
                 className="w-full rounded-lg border border-input bg-card px-2.5 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
@@ -316,7 +316,7 @@ export function ExplorePage({ navigate, onApply }: ExplorePageProps) {
                   {/* Rent Price Badge */}
                   <div className="pt-2 flex items-baseline gap-1">
                     <span className="text-2xl font-black text-foreground tracking-tight">
-                      ${item.market_rent.toLocaleString()}
+                      ₹{item.market_rent.toLocaleString("en-IN")}
                     </span>
                     <span className="text-xs text-muted-foreground font-medium">/month</span>
                   </div>

@@ -124,7 +124,7 @@ export function ApplyModal({ listing, isOpen, onClose }: ApplyModalProps) {
                   Apply for {listing.unit_name}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  {listing.property_name} · ${listing.market_rent.toLocaleString()}/mo
+                  {listing.property_name} · ₹{listing.market_rent.toLocaleString("en-IN")}/mo
                 </p>
               </div>
             </div>
@@ -197,13 +197,13 @@ export function ApplyModal({ listing, isOpen, onClose }: ApplyModalProps) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">
-                    Monthly Income ($)
+                    Monthly Income (₹)
                   </label>
                   <input
                     type="number"
                     value={income}
                     onChange={(e) => setIncome(e.target.value)}
-                    placeholder="e.g. 5500"
+                    placeholder="e.g. 65000"
                     className="w-full rounded-xl border border-input bg-background/50 px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
                   />
                 </div>

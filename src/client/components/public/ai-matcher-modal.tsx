@@ -93,15 +93,15 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5">
-                  Target Monthly Budget ($)
+                  Target Monthly Budget (₹)
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <span className="absolute left-3 top-2.5 text-sm font-bold text-muted-foreground">₹</span>
                   <input
                     type="number"
                     value={budget}
                     onChange={(e) => setBudget(e.target.value)}
-                    placeholder="e.g. 1800"
+                    placeholder="e.g. 25000"
                     className="w-full rounded-xl border border-input bg-card pl-9 pr-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
                   />
                 </div>
@@ -202,7 +202,7 @@ export function AiMatcherModal({ isOpen, onClose, onApply }: AiMatcherModalProps
                             {rec.listing.unit_name} — {rec.listing.property_name}
                           </h4>
                           <p className="text-xs text-muted-foreground">
-                            ${rec.listing.market_rent.toLocaleString()}/mo · {rec.listing.bedrooms}{" "}
+                            ₹{rec.listing.market_rent.toLocaleString("en-IN")}/mo · {rec.listing.bedrooms}{" "}
                             Beds · {rec.listing.bathrooms} Baths ·{" "}
                             {rec.listing.sqft ? `${rec.listing.sqft} sqft` : "Flexible size"}
                           </p>
