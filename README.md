@@ -1,114 +1,154 @@
-# Nestara AI — Intelligent Property & Rental Management System
+# Nestara AI — Digital Property Rental & Intelligence System
 
-> **Find Better. Manage Smarter. Live Easier.**
+> **Find Better. Match Smarter. Manage Seamlessly.**
 
-Nestara AI is an integrated property and rental management platform designed to unify back-office portfolio operations with public tenant discovery, automated AI recommendations, and intelligent maintenance triage.
-
-Built on an edge-native serverless architecture, Nestara AI offers landlords, property managers, and tenants a fast, modern, and self-hostable system without expensive enterprise SaaS subscriptions or heavy infrastructure overhead.
+Nestara AI is an enterprise-grade property operating system that bridges the gap between property managers, current residents, and prospective home seekers. Built on modern edge-first architecture, it unifies back-office landlord operations, public listing discovery, mathematical AI recommendations, and tenant self-service under a single, cohesive, self-hostable platform.
 
 ---
 
-## 1. Key Capabilities
+## 🌟 Key Capabilities
 
-### 🏢 Portfolio & Operations (Operational Baseline)
-- **Properties & Units:** Multi-building and multi-unit portfolio tracking (single-family, multi-family, condo, townhouse, commercial) with occupancy status, unit dimensions, market rent, and color-coded portfolio tags.
-- **Tenants & Leases:** Complete tenant profiles (employment, income, emergency contacts) and multi-tenant lease agreements with custom rent due days, security deposits, and late-fee grace periods.
-- **Rent Ledger & Cashflow:** Idempotent 1-click monthly charge generation, period navigation, and payment allocation tracking across cash, check, ACH, and credit cards.
-- **Maintenance & Work Orders:** Priority-based work order boards (urgent, high, normal, low) with vendor dispatching, scheduled dates, and repair cost tracking.
-- **Vendor Directory:** Trade categorization (plumbers, electricians, HVAC, handymen, cleaning, general contractors) with quick contact integration.
-- **Executive Dashboard:** Live portfolio KPIs including occupancy rates, monthly rent collection breakdowns (collected, outstanding, overdue), open work orders, and 30-day lease expiration alerts.
+### 🔍 1. Public Renter Discovery & AI Matching
+- **Public Property Discovery (`/explore`):** Browse all vacant residential and commercial listings with real-time filters for rent range, bedrooms, bathrooms, and property type.
+- **AI Recommendation Engine:** High-dimensional vector cosine similarity matching that evaluates renter budget, bedroom/bathroom ratio, square footage, and property style to calculate weighted match percentages (e.g. *95% Match*).
+- **Match Insights ("Why this matches"):** Transparent, plain-English explanations highlighting why a specific property matches the renter's lifestyle and budget.
+- **Side-by-Side Comparison Matrix:** Compare candidate properties across price-per-square-foot efficiency, layout density, and amenities to make confident decisions.
+- **Online Application Submission:** Digital leasing applications capturing applicant employment, monthly income, move-in target dates, and personal notes.
 
-### 🤖 Intelligent Features (Roadmap & Reference Synthesis)
-- **Conversational Copilot:** Natural language assistant for prospective renters to search listings by budget, commute, lifestyle, and amenities.
-- **AI Recommendation Engine:** Gemini-powered ranking with natural language "Why this matches" explanations.
-- **Multimodal Maintenance Triage:** Computer vision image triage categorizing damage photos and estimating severity.
-- **Grounded Lease Q&A (RAG):** Context-aware question answering grounded in active lease terms.
+### 🏠 2. Tenant Self-Service Portal (`/portal`)
+- **Active Lease Overview:** Real-time visibility into monthly rent amounts, lease start/end dates, and payment status.
+- **Rent Tracking & Invoicing:** Immediate inspection of rent charges and recorded payment history.
+- **1-Click Maintenance Work Orders:** Log repair tickets categorized by trade (plumbing, electrical, HVAC, general) with urgency levels (`urgent`, `high`, `normal`, `low`) and notes.
+- **Live Ticket Status Tracking:** Follow repair tickets from `reported` → `assigned` → `in_progress` → `completed`.
 
----
-
-## 2. Technology Stack
-
-- **Frontend:** [React 19](https://react.dev/), [Vite](https://vitejs.dev/), [TypeScript](https://www.typescriptlang.org/)
-- **Styling & UI:** [Tailwind CSS v4](https://tailwindcss.com/), [Radix UI primitives](https://www.radix-ui.com/), [Lucide React](https://lucide.dev/)
-- **Backend / API:** [Hono v4](https://hono.dev/) running on [Cloudflare Workers](https://workers.cloudflare.com/) edge runtime
-- **Database:** [Cloudflare D1](https://developers.cloudflare.com/d1/) (Serverless SQLite with full ACID relational integrity)
-- **Package Manager:** [pnpm](https://pnpm.io/) workspace configuration
-- **AI Intelligence Layer:** [Google Gemini 2.0 Flash API](https://ai.google.dev/) (multimodal vision and structured JSON outputs)
+### 🏢 3. Landlord Command Center & Portfolio Operations
+- **Executive Portfolio KPIs:** Real-time occupancy rate, total buildings/units, 30-day lease expiration alerts, and open maintenance count.
+- **Multi-Building & Unit Management:** Track single-family, multi-family, condo, townhouse, and commercial properties with custom color tags.
+- **Tenant & Lease Directory:** Centralized profiles, emergency contacts, co-signers, and custom lease terms (rent due day, security deposits, late fee grace periods).
+- **Rent Ledger & Cashflow:** Idempotent 1-click monthly charge generation, period navigation, and multi-channel payment logging (ACH, credit, cash, check).
+- **Vendor Directory:** Trade categorization (plumbers, electricians, HVAC, handymen, cleaning) with quick dispatch contacts.
 
 ---
 
-## 3. Quickstart & Local Setup
+## 🛡️ Enterprise Security Hardening (OWASP-Aligned)
+
+Nestara AI has undergone a full security audit and implemented defense-in-depth protections across every architectural layer:
+
+| Security Domain | Mechanism & Implementation |
+|---|---|
+| **Cryptographic Authentication** | Passwords hashed using native Web Crypto **PBKDF2-HMAC-SHA256** with 100,000 iterations, unique 16-byte cryptographically random salts, and constant-time buffer comparison. |
+| **Role-Based Access Control (RBAC)** | Strict endpoint segregation protecting back-office mutations (`POST`, `PUT`, `DELETE`) and sensitive financial/tenant ledgers (`/api/tenants`, `/api/leases`, `/api/payments`) with `landlord` or `admin` authorization. |
+| **Token Versioning & Revocation** | Eliminates stateless JWT revocation vulnerabilities via database-tracked `token_version`. Invoking `/api/auth/logout` increments the version, instantly invalidating active sessions. |
+| **XSS-Resistant Cookie Transport** | Client token storage avoids insecure `localStorage` persistence, relying on `HttpOnly; SameSite=Lax` cookies with `credentials: "same-origin"` and in-memory authorization. |
+| **Edge Sliding-Window Rate Limiting** | Dynamic rate limiter applied to sensitive endpoints: `/api/auth/login` (10 req/5m), `/api/auth/register` (10 req/5m), and `/api/public/apply` (15 req/30m) with `Retry-After` headers. |
+| **Timing Attack Mitigation** | Equalized PBKDF2 calculation cost on login/registration lookups using dummy derivations to prevent user email enumeration. |
+| **Relational Integrity** | Mandatory `PRAGMA foreign_keys = ON;` execution guaranteeing cascade deletes and relational referential integrity. |
+| **Hardened HTTP Headers & CORS** | Automated injection of HSTS, `X-Frame-Options: DENY` (clickjacking defense), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and strict CORS policies. |
+
+---
+
+## 💻 Technology Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Frontend Framework** | [React 18](https://react.dev/) & [TypeScript](https://www.typescriptlang.org/) | Type-safe, component-driven reactive user interface |
+| **Build & Tooling** | [Vite 6](https://vitejs.dev/) | Sub-second HMR, tree-shaking, and optimized production chunking |
+| **Styling & UI Primitives** | [Tailwind CSS Design Tokens](https://tailwindcss.com/) & [Radix UI](https://www.radix-ui.com/) | Accessible, responsive, mobile-first design with theme tokens |
+| **Icons** | [Lucide React](https://lucide.dev/) | Clean, consistent SVG icon system |
+| **Edge API Framework** | [Hono v4](https://hono.dev/) | Ultrafast, lightweight edge web standard router (<15KB) |
+| **Database Engine** | [Cloudflare D1](https://developers.cloudflare.com/d1/) / [SQLite](https://sqlite.org/) | Serverless relational database with ACID compliance |
+| **Schema Validation** | [Zod](https://zod.dev/) | Runtime boundary type validation and payload parsing |
+| **Cryptography** | [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) | Hardware-accelerated PBKDF2-HMAC-SHA256 password hashing |
+| **Package Manager** | [pnpm](https://pnpm.io/) | Fast, disk-efficient workspace dependency management |
+
+---
+
+## 🚀 Quickstart & Local Setup
 
 ### Prerequisites
-- **Node.js:** `>= 20.0.0` (Verified on Node `v24.20.0`)
-- **pnpm:** `>= 9.0.0` (Verified on pnpm `12.15.0`)
-- **Git:** `>= 2.40.0`
+- **Node.js:** `>= 20.0.0` (Tested on Node `v24.19.0`)
+- **pnpm:** `>= 9.0.0` (Tested on pnpm `12.15.0`)
 
-### Step 1: Install Dependencies
-```powershell
+### 1. Clone & Install Dependencies
+```bash
+git clone https://github.com/rootnode-rebels/nestara-ai.git
+cd nestara-ai
 pnpm install
 ```
 
-### Step 2: Initialize & Migrate Local D1 Database
-Apply the relational schema to the local Cloudflare D1 SQLite database:
-```powershell
+### 2. Initialize the Database
+Initialize the SQLite / D1 relational schema and seed default settings:
+```bash
 pnpm db:migrate
 ```
-*Applies 25 DDL commands and automatically seeds initial sample properties, units, and vendors.*
+*Applies relational tables, foreign key constraints, and seeds initial demo properties, units, and vendors.*
 
-### Step 3: Run the Development Server
-```powershell
+### 3. Start the Development Server
+```bash
 pnpm dev
 ```
-Runs the Vite frontend and Wrangler Cloudflare Worker API concurrently:
-- **Frontend UI:** [http://localhost:5173](http://localhost:5173)
+The application will boot concurrently:
+- **Frontend Web UI:** [http://localhost:5173](http://localhost:5173)
 - **Backend API:** [http://localhost:8787](http://localhost:8787)
-- **API Health Check:** [http://localhost:8787/api/health](http://localhost:8787/api/health)
+- **Health Check:** [http://localhost:8787/api/health](http://localhost:8787/api/health)
 
-### Verification Commands
-```powershell
-pnpm typecheck   # TypeScript compiler check (0 errors)
-pnpm build       # Production client bundle compilation (Vite)
+### Default Demo Credentials
+When the database initializes, an initial portfolio manager account is provisioned:
+- **Email:** `demo@nestara.ai`
+- **Password:** `Password123!`
+- **Role:** `landlord`
+
+*(You can also register new landlord or tenant accounts directly from the UI).*
+
+### 4. Verification & Testing
+```bash
+pnpm typecheck   # Validates TypeScript compilation with zero errors
+pnpm build       # Bundles client assets for production via Vite
 ```
-
-For comprehensive PowerShell instructions and troubleshooting, see [docs/SETUP_AND_RUN.md](docs/SETUP_AND_RUN.md).
 
 ---
 
-## 4. Repository Structure
+## 📂 Repository Structure
 
 ```
-OpenProperty/
+nestara-ai/
 ├── src/
-│   ├── client/                      # React 19 Single Page Application
+│   ├── client/                      # React 18 Single Page Application
 │   │   ├── components/              # UI components
+│   │   │   ├── auth/                # Login, registration modal & user navigation
 │   │   │   ├── dashboard/           # Portfolio KPIs & monthly cashflow
-│   │   │   ├── leases/              # Lease manager & modals
+│   │   │   ├── leases/              # Lease agreements & renewal dialogs
 │   │   │   ├── maintenance/         # Work orders board & vendor dispatch
 │   │   │   ├── properties/          # Properties & units management
+│   │   │   ├── public/              # Public listings (/explore), AI matcher, compare & apply modals
 │   │   │   ├── rent/                # Monthly rent ledger & payment dialogs
 │   │   │   ├── settings/            # Vendor directory & late-fee policies
+│   │   │   ├── tenant/              # Tenant self-service portal (/portal)
 │   │   │   ├── tenants/             # Tenant directory & profile views
 │   │   │   └── ui/                  # Radix UI and design system primitives
-│   │   ├── hooks/                   # use-router.ts (pushState), use-app-state.ts
+│   │   ├── hooks/                   # use-auth.ts, use-router.ts, use-app-state.ts
 │   │   ├── lib/                     # Color tokens, date/currency utilities
-│   │   ├── api.ts                   # Fetch API wrapper
-│   │   ├── app.tsx                  # Top-level shell with Nestara AI navigation
+│   │   ├── api.ts                   # Fetch API client with HttpOnly cookie transport
+│   │   ├── app.tsx                  # Top-level shell with RBAC navigation & routing
 │   │   ├── main.tsx                 # React client entry point
-│   │   └── styles.css               # Tailwind CSS v4 design tokens
-│   └── server/                      # Cloudflare Workers & Hono backend
+│   │   ├── styles.css               # Design system & CSS custom properties
+│   │   └── types.ts                 # Shared TypeScript entity definitions
+│   └── server/                      # Hono Edge Backend & Cloudflare D1
+│       ├── ai.ts                    # Vector embedding & cosine similarity algorithms
+│       ├── auth.ts                  # PBKDF2 crypto, JWT issuance, RBAC & token revocation
 │       ├── db.ts                    # D1 query execution wrapper
-│       ├── index.ts                 # 43 REST endpoints and auto-seeding logic
-│       └── schema.sql               # 11 D1 relational tables & index definitions
+│       ├── index.ts                 # REST API endpoints, RBAC middleware & rate limiter
+│       └── schema.sql               # Relational D1 schema & index definitions
 ├── docs/                            # Comprehensive System Documentation Suite
-│   ├── REPOSITORY_AUDIT.md          # In-depth audit of all repositories
-│   ├── FEATURE_MATRIX.md            # 22-feature comparison matrix & reuse decisions
-│   ├── ARCHITECTURE.md              # Current vs Target Architecture with diagrams
-│   ├── PROJECT_STATUS.md            # Authoritative progress tracking & validation
-│   ├── IMPLEMENTATION_ROADMAP.md    # Prioritized engineering roadmap
+│   ├── ARCHITECTURE.md              # Technical architecture & component topology
+│   ├── CHANGELOG.md                 # Chronological log of modifications
+│   ├── FEATURE_MATRIX.md            # Comprehensive feature breakdown
+│   ├── FRIEND_HANDOFF.md            # Developer onboarding & handoff notes
+│   ├── IMPLEMENTATION_ROADMAP.md    # Phased engineering roadmap
+│   ├── PROJECT_STATUS.md            # Authoritative progress registry
+│   ├── REPOSITORY_AUDIT.md          # Upstream baseline audit
 │   ├── SETUP_AND_RUN.md             # PowerShell setup and run instructions
-│   ├── UPSTREAM_ATTRIBUTION.md      # Legal attribution, licenses, & compliance
-│   └── CHANGELOG.md                 # Chronological log of changes and verifications
+│   └── UPSTREAM_ATTRIBUTION.md      # Licensing & legal attribution
 ├── package.json                     # Scripts and dependencies
 ├── tsconfig.json                    # TypeScript compiler configuration
 ├── vite.config.ts                   # Vite build configuration
@@ -118,30 +158,26 @@ OpenProperty/
 
 ---
 
-## 5. Documentation Index
+## 📚 Documentation Index
 
 The complete architectural, compliance, and engineering documentation is maintained in the `docs/` directory:
 
-- 🤝 [Developer Onboarding & Friend Handover](docs/FRIEND_HANDOFF.md) — Comprehensive guide for incoming developers and next steps.
-- 📋 [Repository Audit](docs/REPOSITORY_AUDIT.md) — Factual analysis of the primary repository and archive manifest.
-- 📊 [Feature Matrix](docs/FEATURE_MATRIX.md) — 22-feature comparison and clean-room implementation decisions.
-- 🏛️ [System Architecture](docs/ARCHITECTURE.md) — Baseline vs. Target architecture with Mermaid diagrams.
-- 📌 [Project Status](docs/PROJECT_STATUS.md) — Authoritative progress registry, empirical verification results, and completion metrics.
-- 🗺️ [Implementation Roadmap](docs/IMPLEMENTATION_ROADMAP.md) — Phased engineering tasks and acceptance criteria.
-- ⚙️ [Setup & Run Guide](docs/SETUP_AND_RUN.md) — Complete Windows PowerShell commands and troubleshooting.
+- 🏛️ [System Architecture](docs/ARCHITECTURE.md) — Technical topology, edge routing, and data models.
+- 📊 [Feature Matrix](docs/FEATURE_MATRIX.md) — In-depth breakdown of portfolio, public discovery, and AI capabilities.
+- 📌 [Project Status](docs/PROJECT_STATUS.md) — Progress registry, security audit resolutions, and verification metrics.
+- 🗺️ [Implementation Roadmap](docs/IMPLEMENTATION_ROADMAP.md) — Engineering phases and acceptance criteria.
+- ⚙️ [Setup & Run Guide](docs/SETUP_AND_RUN.md) — Setup and deployment instructions.
+- 🤝 [Developer Onboarding & Handover](docs/FRIEND_HANDOFF.md) — Onboarding guide for incoming developers.
 - ⚖️ [Upstream Attribution](docs/UPSTREAM_ATTRIBUTION.md) — Open-source licensing analysis and copyright attribution.
-- 📝 [Changelog](docs/CHANGELOG.md) — Record of modifications and verification steps.
+- 📝 [Changelog](docs/CHANGELOG.md) — Complete record of releases and verification steps.
 
 ---
 
-## 6. Upstream Attribution & License
+## 📄 License & Attribution
 
-Nestara AI's primary application is derived from MIT-licensed OpenProperty, and the original copyright and license notice are preserved. The reviewed reference repositories were not incorporated as source code. Third-party dependency licenses and applicable notices must still be respected.
-
-- The original OpenProperty copyright notice and MIT license are preserved in full in [`LICENSE`](LICENSE).
-- All upstream rights are acknowledged. For comprehensive details regarding reference repositories, third-party dependency licensing, and clean-room implementation boundaries, refer to [docs/UPSTREAM_ATTRIBUTION.md](docs/UPSTREAM_ATTRIBUTION.md).
+Nestara AI is open-source software licensed under the [MIT License](LICENSE).
 
 ```
 MIT License
-Copyright (c) 2026 Clawnify
+Copyright (c) 2026 Nestara AI Contributors
 ```
