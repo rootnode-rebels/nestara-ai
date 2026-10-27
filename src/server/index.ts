@@ -154,6 +154,56 @@ const DEMO_VENDORS: Array<[string, string, string, string]> = [
   ["Bright Spark Electricals", "electrician", "+91 98450 01102", "amber"],
 ];
 
+
+/**
+ * Automatically synchronizes a tenant's profile into the users table so
+ * that tenants can log in directly with their credentials without encountering
+ * any registration barriers or "create account" prompts.
+ */
+async function syncTenantUser(
+  tenant: { id: number; email: string | null; first_name: string; last_name: string },
+  customPassword?: string | null
+): Promise<void> {
+  if (!tenant.email || !tenant.email.trim()) return;
+  const normalizedEmail = tenant.email.trim().toLowerCase();
+  const fullName = `${tenant.first_name} ${tenant.last_name}`.trim();
+
+  const existingUser = await get<{ id: number; role: string; token_version: number }>(
+    "SELECT id, role, token_version FROM users WHERE lower(email) = ?",
+    [normalizedEmail]
+  );
+
+  const initialPassword = customPassword && customPassword.trim().length >= 6
+    ? customPassword.trim()
+    : "Password123!";
+
+  if (!existingUser) {
+    const { hash, salt } = await hashPassword(initialPassword);
+    await run(
+      "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, 'tenant', ?, 1)",
+      [normalizedEmail, hash, salt, fullName, tenant.id]
+    );
+  } else {
+    // Preserve admin and landlord administrative privileges if this user already holds one
+    const role = (existingUser.role === "admin" || existingUser.role === "landlord")
+      ? existingUser.role
+      : "tenant";
+
+    if (customPassword && customPassword.trim().length >= 6) {
+      const { hash, salt } = await hashPassword(customPassword.trim());
+      await run(
+        "UPDATE users SET tenant_id = ?, full_name = ?, role = ?, password_hash = ?, salt = ?, token_version = token_version + 1 WHERE id = ?",
+        [tenant.id, fullName, role, hash, salt, existingUser.id]
+      );
+    } else {
+      await run(
+        "UPDATE users SET tenant_id = ?, full_name = ?, role = ? WHERE id = ?",
+        [tenant.id, fullName, role, existingUser.id]
+      );
+    }
+  }
+}
+
 let seeded = false;
 
 async function ensureSeeded(): Promise<void> {
@@ -355,6 +405,15 @@ async function ensureSeeded(): Promise<void> {
 
     // Ensure token_version column exists on existing databases (SEC-07)
     await run("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1").catch(() => {});
+
+    // Automatically synchronize ALL existing tenants with an email into the users table
+    const allTenants = await query<{ id: number; email: string | null; first_name: string; last_name: string }>(
+      "SELECT id, email, first_name, last_name FROM tenants WHERE email IS NOT NULL AND trim(email) != ''"
+    ).catch(() => []);
+    for (const t of allTenants) {
+      await syncTenantUser(t);
+    }
+
     seeded = true;
   } catch (err) {
     console.error("[ensureSeeded error]", err);
@@ -424,8 +483,15 @@ app.post("/api/auth/register", async (c) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const existing = await get<{ id: number }>("SELECT id FROM users WHERE lower(email) = ?", [normalizedEmail]);
+  const existing = await get<{ id: number; role: string }>("SELECT id, role FROM users WHERE lower(email) = ?", [normalizedEmail]);
   if (existing) {
+    if (existing.role === "tenant") {
+      return c.json({
+        error: "Your tenant account has already been registered by your property manager. Please sign in directly with your email and password.",
+        code: "TENANT_ALREADY_REGISTERED",
+        is_registered_tenant: true,
+      }, 409);
+    }
     // Mitigate timing attack & enumeration (SEC-06) by performing equalized work
     await hashPassword(password, "00000000000000000000000000000000");
     return c.json({ error: "Unable to register with this email address. Please sign in or try another email." }, 409);
@@ -867,6 +933,7 @@ const TenantInput = z.object({
   employer: z.string().optional().nullable(),
   monthly_income: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
+  password: z.string().min(6).optional().nullable(),
 });
 
 app.get("/api/tenants", async (c) => {
@@ -920,19 +987,12 @@ app.post("/api/tenants", async (c) => {
   );
   const tenantId = Number(result.lastInsertRowid);
 
-  // Auto-provision tenant login account if email is provided
+  // Auto-provision and sync tenant login credentials directly into DB
   if (d.email) {
-    const normalizedEmail = d.email.trim().toLowerCase();
-    const existingUser = await get<{ id: number }>("SELECT id FROM users WHERE lower(email) = ?", [normalizedEmail]);
-    if (!existingUser) {
-      const { hash, salt } = await hashPassword("Password123!");
-      await run(
-        "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, 'tenant', ?, 1)",
-        [normalizedEmail, hash, salt, `${d.first_name} ${d.last_name}`.trim(), tenantId]
-      );
-    } else {
-      await run("UPDATE users SET tenant_id = ?, role = 'tenant' WHERE id = ?", [tenantId, existingUser.id]);
-    }
+    await syncTenantUser(
+      { id: tenantId, email: d.email, first_name: d.first_name, last_name: d.last_name },
+      d.password
+    );
   }
 
   const row = await get("SELECT * FROM tenants WHERE id = ?", [tenantId]);
@@ -944,18 +1004,31 @@ app.put("/api/tenants/:id", async (c) => {
   if (!id) return c.json({ error: "Invalid ID" }, 400);
   const parsed = await parseJson(c, TenantInput.partial());
   if (!parsed.ok) return c.json({ error: parsed.error }, 400);
-  const { sets, params } = buildUpdate(parsed.data);
-  if (!sets.length) return c.json({ error: "No fields" }, 400);
-  params.push(id);
-  const r = await run(`UPDATE tenants SET ${sets.join(", ")} WHERE id = ?`, params);
-  if (!r.changes) return c.json({ error: "Not found" }, 404);
-  const row = await get("SELECT * FROM tenants WHERE id = ?", [id]);
+  const { password, ...tenantFields } = parsed.data;
+  const { sets, params } = buildUpdate(tenantFields);
+  if (sets.length) {
+    params.push(id);
+    const r = await run(`UPDATE tenants SET ${sets.join(", ")} WHERE id = ?`, params);
+    if (!r.changes) return c.json({ error: "Not found" }, 404);
+  }
+  const row = await get<{ id: number; email: string | null; first_name: string; last_name: string }>(
+    "SELECT * FROM tenants WHERE id = ?",
+    [id]
+  );
+  if (!row) return c.json({ error: "Not found" }, 404);
+
+  // Automatically sync updated email/password/name directly into users table
+  if (row.email) {
+    await syncTenantUser(row, password);
+  }
+
   return c.json({ tenant: row });
 });
 
 app.delete("/api/tenants/:id", async (c) => {
   const id = intParam(c.req.param("id"));
   if (!id) return c.json({ error: "Invalid ID" }, 400);
+  await run("DELETE FROM users WHERE tenant_id = ?", [id]).catch(() => {});
   const r = await run("DELETE FROM tenants WHERE id = ?", [id]);
   if (!r.changes) return c.json({ error: "Not found" }, 404);
   return c.json({ ok: true });
@@ -1024,24 +1097,14 @@ app.post("/api/leases", async (c) => {
     await run("UPDATE units SET status = 'occupied' WHERE id = ?", [d.unit_id]);
   }
 
-  // Ensure assigned tenant has active user login credentials
+  // Ensure assigned tenant has active user login credentials synced
   if (d.primary_tenant_id) {
     const t = await get<{ id: number; email: string | null; first_name: string; last_name: string }>(
       "SELECT id, email, first_name, last_name FROM tenants WHERE id = ?",
       [d.primary_tenant_id]
     );
-    if (t?.email) {
-      const normalizedEmail = t.email.trim().toLowerCase();
-      const existingUser = await get<{ id: number }>("SELECT id FROM users WHERE lower(email) = ?", [normalizedEmail]);
-      if (!existingUser) {
-        const { hash, salt } = await hashPassword("Password123!");
-        await run(
-          "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, 'tenant', ?, 1)",
-          [normalizedEmail, hash, salt, `${t.first_name} ${t.last_name}`.trim(), t.id]
-        );
-      } else {
-        await run("UPDATE users SET tenant_id = ?, role = 'tenant' WHERE id = ?", [t.id, existingUser.id]);
-      }
+    if (t) {
+      await syncTenantUser(t);
     }
   }
 
@@ -1059,7 +1122,14 @@ app.put("/api/leases/:id", async (c) => {
   params.push(id);
   const r = await run(`UPDATE leases SET ${sets.join(", ")} WHERE id = ?`, params);
   if (!r.changes) return c.json({ error: "Not found" }, 404);
-  const row = await get(`${LEASE_SELECT} WHERE l.id = ?`, [id]);
+  const row = await get<any>(`${LEASE_SELECT} WHERE l.id = ?`, [id]);
+  if (row?.primary_tenant_id) {
+    const t = await get<{ id: number; email: string | null; first_name: string; last_name: string }>(
+      "SELECT id, email, first_name, last_name FROM tenants WHERE id = ?",
+      [row.primary_tenant_id]
+    );
+    if (t) await syncTenantUser(t);
+  }
   return c.json({ lease: row });
 });
 
@@ -1527,15 +1597,15 @@ app.get("/api/tenant/portal", async (c) => {
     });
   }
 
-  // Fetch active lease
+  // Fetch active or upcoming lease
   const lease = await get<any>(
     `SELECT l.*, u.name as unit_name, u.bedrooms, u.bathrooms, u.sqft,
             p.name as property_name, p.address as property_address, p.city as property_city, p.color as property_color
      FROM leases l
      JOIN units u ON u.id = l.unit_id
      JOIN properties p ON p.id = u.property_id
-     WHERE l.primary_tenant_id = ? AND l.status = 'active'
-     ORDER BY l.start_date DESC LIMIT 1`,
+     WHERE l.primary_tenant_id = ? AND l.status IN ('active', 'upcoming')
+     ORDER BY CASE l.status WHEN 'active' THEN 0 ELSE 1 END, l.start_date DESC LIMIT 1`,
     [tenant.id]
   );
 

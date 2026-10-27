@@ -26,7 +26,16 @@ export function AuthModal() {
         await register(email, password, fullName, role);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      const msg = err instanceof Error ? err.message : "Authentication failed";
+      if (
+        msg.includes("already been registered by your property manager") ||
+        msg.includes("TENANT_ALREADY_REGISTERED")
+      ) {
+        setMode("login");
+        setError("Your tenant account is already active! Please sign in directly with your email and password (default: Password123!).");
+      } else {
+        setError(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -94,6 +103,12 @@ export function AuthModal() {
           <div className="mb-4 flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-xs font-medium text-destructive">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {mode === "register" && (
+          <div className="mb-3 rounded-xl border border-primary/20 bg-primary/5 p-2.5 text-[11px] text-primary">
+            💡 <b>Are you a resident tenant?</b> If your landlord has registered your email, your account is already active. You do not need to create an account—simply switch to <b>Sign In</b>.
           </div>
         )}
 
@@ -203,14 +218,67 @@ export function AuthModal() {
 
         {/* Quick Demo Access Helper */}
         {mode === "login" && (
-          <div className="mt-4 pt-3 border-t border-border/60">
-            <button
-              type="button"
-              onClick={fillDemoLandlord}
-              className="w-full rounded-xl border border-dashed border-primary/40 bg-primary/5 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-            >
-              Fill Demo Landlord Account (demo@nestara.ai)
-            </button>
+          <div className="mt-4 pt-3 border-t border-border/60 space-y-1.5">
+            <p className="text-[11px] font-medium text-muted-foreground text-center">Quick Demo Access (Password: Password123!)</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setEmail("admin@nestara.ai");
+                  setPassword("Admin123!");
+                  setError(null);
+                }}
+                className="rounded-xl border border-dashed border-destructive/40 bg-destructive/5 py-1.5 px-2 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors text-left"
+              >
+                🛡️ Admin (admin@nestara.ai)
+              </button>
+              <button
+                type="button"
+                onClick={fillDemoLandlord}
+                className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-1.5 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors text-left"
+              >
+                🏢 Landlord (demo)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setEmail("tenant1@nestara.ai");
+                  setPassword("Password123!");
+                  setError(null);
+                }}
+                className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-1.5 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors text-left"
+              >
+                🔑 Tenant (Aarav)
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setEmail("rohan.verma@gmail.com");
+                  setPassword("Password123!");
+                  setError(null);
+                }}
+                className="rounded-xl border border-border bg-muted/40 py-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left"
+              >
+                🔑 Tenant (Rohan)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setEmail("ananya.iyer@gmail.com");
+                  setPassword("Password123!");
+                  setError(null);
+                }}
+                className="rounded-xl border border-border bg-muted/40 py-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left"
+              >
+                🔑 Tenant (Ananya)
+              </button>
+            </div>
           </div>
         )}
       </div>

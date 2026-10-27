@@ -31,6 +31,7 @@ export interface Unit {
   market_rent: number;
   status: UnitStatus;
   notes: string | null;
+  password?: string | null;
   created_at: string;
   // Joined
   property_name?: string | null;

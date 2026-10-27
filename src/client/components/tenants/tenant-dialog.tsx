@@ -27,6 +27,7 @@ export function TenantDialog({ open, onOpenChange, tenant, onSaved }: Props) {
   const [income, setIncome] = useState("");
   const [emergency, setEmergency] = useState("");
   const [notes, setNotes] = useState("");
+  const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export function TenantDialog({ open, onOpenChange, tenant, onSaved }: Props) {
     setIncome(tenant?.monthly_income ? String(tenant.monthly_income) : "");
     setEmergency(tenant?.emergency_contact ?? "");
     setNotes(tenant?.notes ?? "");
+    setPassword("");
   }, [open, tenant]);
 
   async function save() {
@@ -56,6 +58,7 @@ export function TenantDialog({ open, onOpenChange, tenant, onSaved }: Props) {
         monthly_income: income ? parseFloat(income) : null,
         emergency_contact: emergency.trim() || null,
         notes: notes.trim() || null,
+        password: password.trim() || undefined,
       };
       const saved = tenant
         ? await app.updateTenant(tenant.id, payload)
@@ -130,6 +133,25 @@ export function TenantDialog({ open, onOpenChange, tenant, onSaved }: Props) {
           <div>
             <Label htmlFor="t-notes">Notes</Label>
             <Textarea id="t-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+          </div>
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs space-y-1">
+            <div className="flex items-center gap-1.5 font-semibold text-primary">
+              <span>🔑 Automatic Resident Portal Access</span>
+            </div>
+            <p className="text-muted-foreground text-[11px]">
+              This tenant will automatically be synced in the database and can sign in directly to the Resident Portal without needing to create an account.
+            </p>
+            <div className="pt-1">
+              <Label htmlFor="t-pwd" className="text-[11px] text-muted-foreground">Initial Portal Password (optional)</Label>
+              <Input
+                id="t-pwd"
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Default: Password123!"
+                className="mt-1 h-8 text-xs bg-background/80"
+              />
+            </div>
           </div>
         </div>
         <DialogFooter className="mt-2">

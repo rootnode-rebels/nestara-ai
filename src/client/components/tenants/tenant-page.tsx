@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Mail, Pencil, Phone, User } from "lucide-react";
+import { ArrowLeft, Mail, Pencil, Phone, User, KeyRound } from "lucide-react";
 import { useApp } from "@/context";
 import { api } from "@/api";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -83,6 +83,35 @@ export function TenantPage({ id, navigate }: { id: number; navigate: (to: string
             <Pencil className="mr-1 h-4 w-4" /> Edit
           </Button>
         </header>
+
+        <Card className="p-5 border-primary/20 bg-primary/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" />
+              <div className="text-[1.0625rem] font-semibold leading-tight">Resident Portal Login</div>
+            </div>
+            <Badge variant={tenant.email ? "default" : "secondary"}>
+              {tenant.email ? "Portal Synced" : "No Email"}
+            </Badge>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {tenant.email
+              ? "This resident is automatically registered in the database. They can sign in directly to the Resident Portal without needing to create an account."
+              : "Add an email to this tenant to automatically enable direct resident portal access."}
+          </p>
+          {tenant.email && (
+            <div className="mt-3 flex flex-wrap gap-4 text-xs font-mono bg-background/80 rounded-xl p-3 border border-border/70">
+              <div>
+                <span className="text-muted-foreground font-sans">Login Email: </span>
+                <span className="font-semibold text-foreground">{tenant.email}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-sans">Initial Password: </span>
+                <span className="font-semibold text-foreground">Password123!</span>
+              </div>
+            </div>
+          )}
+        </Card>
 
         {activeLease && (
           <Card className="p-5">

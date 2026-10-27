@@ -136,16 +136,17 @@ export function TenantPortalPage({ navigate }: { navigate: (to: string) => void 
             <Home className="h-7 w-7" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-xl font-bold text-foreground">Sign In to Your Tenant Portal</h2>
-            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            <h2 className="text-xl font-bold text-foreground">Sign In to Your Resident Portal</h2>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
               Access your lease documents, pay monthly rent, and submit maintenance repair requests.
+              Registered by property management? You can sign in directly using your email and provided credentials without creating an account.
             </p>
           </div>
           <button
             onClick={openAuthModal}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
           >
-            Sign In / Register
+            Sign In to Resident Portal
           </button>
         </div>
       </PageShell>
