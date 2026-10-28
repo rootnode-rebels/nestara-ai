@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import { initDB, query, get, run } from "./db";
 import { hashPassword, verifyPassword, generateToken, verifyToken, requireAuth, requireRoles, type UserRecord } from "./auth";
-import { rankRecommendations, compareProperties, type CandidateListing } from "./ai";
+import { rankRecommendations, compareProperties, triageMaintenanceIssue, type CandidateListing } from "./ai";
 
 type Env = { Bindings: { DB: D1Database } };
 
@@ -15,6 +15,8 @@ app.use("*", secureHeaders({
   xFrameOptions: "DENY",
   xContentTypeOptions: "nosniff",
   referrerPolicy: "strict-origin-when-cross-origin",
+  strictTransportSecurity: "max-age=31536000; includeSubDomains",
+  xXssProtection: "1; mode=block",
 }));
 
 // Security Audit Fix (SEC-08 & SEC-04): Strict CORS with credentials
@@ -435,6 +437,13 @@ async function ensureSeeded(): Promise<void> {
       await syncTenantUser(t);
     }
 
+    // Self-healing: link any unlinked tenant user account directly to their tenant record
+    await run(`
+      UPDATE users 
+      SET tenant_id = (SELECT id FROM tenants WHERE lower(tenants.email) = lower(users.email)) 
+      WHERE users.role = 'tenant' AND (users.tenant_id IS NULL OR users.tenant_id NOT IN (SELECT id FROM tenants))
+    `).catch(() => {});
+
     seeded = true;
   } catch (err) {
     console.error("[ensureSeeded error]", err);
@@ -796,6 +805,20 @@ app.post("/api/ai/compare", async (c) => {
   return c.json({ comparison });
 });
 
+const TriageInput = z.object({
+  title: z.string().min(1, "Title is required").max(200),
+  description: z.string().max(2000).optional().nullable(),
+  image_data: z.string().max(5 * 1024 * 1024, "Image data exceeds 5MB limit").optional().nullable(),
+});
+
+app.post("/api/ai/triage-maintenance", async (c) => {
+  const parsed = await parseJson(c, TriageInput);
+  if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+
+  const triage = triageMaintenanceIssue(parsed.data);
+  return c.json({ triage });
+});
+
 // ── Properties ─────────────────────────────────────────────────────
 
 const PropertyInput = z.object({
@@ -961,7 +984,8 @@ const TenantInput = z.object({
 app.get("/api/tenants", async (c) => {
   const search = c.req.query("q")?.trim();
   if (search) {
-    const like = `%${search}%`;
+    const sanitized = search.slice(0, 100).replace(/[%_]/g, "\\$&");
+    const like = `%${sanitized}%`;
     const rows = await query(
       `SELECT t.*,
          (SELECT u.id FROM leases l LEFT JOIN units u ON u.id = l.unit_id
@@ -971,7 +995,7 @@ app.get("/api/tenants", async (c) => {
          (SELECT p.name FROM leases l LEFT JOIN units u ON u.id = l.unit_id LEFT JOIN properties p ON p.id = u.property_id
             WHERE l.primary_tenant_id = t.id AND l.status = 'active' LIMIT 1) as active_property_name
        FROM tenants t
-       WHERE t.last_name LIKE ? OR t.first_name LIKE ? OR t.email LIKE ? OR t.phone LIKE ?
+       WHERE (t.last_name LIKE ? ESCAPE '\\' OR t.first_name LIKE ? ESCAPE '\\' OR t.email LIKE ? ESCAPE '\\' OR t.phone LIKE ? ESCAPE '\\')
        ORDER BY t.last_name, t.first_name LIMIT 200`,
       [like, like, like, like],
     );
@@ -1152,14 +1176,46 @@ app.put("/api/leases/:id", async (c) => {
     );
     if (t) await syncTenantUser(t);
   }
+
+  // Synchronize unit occupancy status when lease status changes
+  if (parsed.data.status && row?.unit_id) {
+    if (parsed.data.status === "active") {
+      await run("UPDATE units SET status = 'occupied' WHERE id = ?", [row.unit_id]);
+    } else if (parsed.data.status === "ended" || parsed.data.status === "cancelled") {
+      const otherActive = await get<{ id: number }>(
+        "SELECT id FROM leases WHERE unit_id = ? AND status = 'active' AND id != ?",
+        [row.unit_id, id]
+      );
+      if (!otherActive) {
+        await run("UPDATE units SET status = 'vacant' WHERE id = ?", [row.unit_id]);
+      }
+    }
+  }
+
   return c.json({ lease: row });
 });
 
 app.delete("/api/leases/:id", async (c) => {
   const id = intParam(c.req.param("id"));
   if (!id) return c.json({ error: "Invalid ID" }, 400);
+
+  // Retrieve unit_id before deleting so unit status can be restored
+  const existing = await get<{ unit_id: number }>("SELECT unit_id FROM leases WHERE id = ?", [id]);
+
   const r = await run("DELETE FROM leases WHERE id = ?", [id]);
   if (!r.changes) return c.json({ error: "Not found" }, 404);
+
+  // If no other active lease exists on that unit, set unit back to vacant
+  if (existing?.unit_id) {
+    const otherActive = await get<{ id: number }>(
+      "SELECT id FROM leases WHERE unit_id = ? AND status = 'active'",
+      [existing.unit_id]
+    );
+    if (!otherActive) {
+      await run("UPDATE units SET status = 'vacant' WHERE id = ?", [existing.unit_id]);
+    }
+  }
+
   return c.json({ ok: true });
 });
 
@@ -1710,6 +1766,73 @@ app.post("/api/tenant/work-orders", async (c) => {
 
   const created = await get(`${WO_SELECT} WHERE w.id = ?`, [res.lastInsertRowid]);
   return c.json({ work_order: created }, 201);
+});
+
+const TenantPaymentInput = z.object({
+  charge_id: z.number().int().positive(),
+  amount: z.number().positive("Payment amount must be greater than zero"),
+  method: z.enum(["cash", "check", "ach", "credit", "other"]).default("other"),
+  reference: z.string().max(100).optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+app.post("/api/tenant/payments", async (c) => {
+  const user = await verifyToken(c);
+  if (!user) {
+    return c.json({ error: "Authentication required", code: "UNAUTHORIZED" }, 401);
+  }
+
+  let tenant = null;
+  if (user.tenant_id) {
+    tenant = await get<any>("SELECT * FROM tenants WHERE id = ?", [user.tenant_id]);
+  }
+  if (!tenant && user.email) {
+    tenant = await get<any>("SELECT * FROM tenants WHERE lower(email) = lower(?)", [user.email]);
+  }
+  if (!tenant) {
+    return c.json({ error: "No active tenant record linked to your account" }, 403);
+  }
+
+  const parsed = await parseJson(c, TenantPaymentInput);
+  if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+  const { charge_id, amount, method, reference, notes } = parsed.data;
+
+  // STRICT AUTHORIZATION CHECK: Verify this rent charge belongs to this tenant's active or upcoming lease!
+  const charge = await get<{ id: number; amount: number; amount_paid: number; lease_id: number }>(
+    `SELECT rc.id, rc.amount, rc.amount_paid, rc.lease_id
+     FROM rent_charges rc
+     JOIN leases l ON l.id = rc.lease_id
+     WHERE rc.id = ? AND l.primary_tenant_id = ?`,
+    [charge_id, tenant.id]
+  );
+
+  if (!charge) {
+    return c.json({ error: "Rent charge not found or unauthorized for this account" }, 404);
+  }
+
+  const remaining = Math.max(0, charge.amount - charge.amount_paid);
+  if (remaining <= 0) {
+    return c.json({ error: "This rent charge is already settled in full" }, 400);
+  }
+
+  const paymentAmount = Math.min(amount, remaining);
+
+  await run(
+    `INSERT INTO payments (charge_id, paid_at, amount, method, reference, notes)
+     VALUES (?, datetime('now'), ?, ?, ?, ?)`,
+    [charge.id, paymentAmount, method, reference ?? "Resident Portal Self-Service Payment", notes ?? null]
+  );
+
+  const sumRow = await get<{ total: number }>(
+    "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE charge_id = ?",
+    [charge.id]
+  );
+  const totalPaid = Number(sumRow?.total ?? 0);
+  const newStatus = totalPaid >= charge.amount ? "paid" : totalPaid > 0 ? "partial" : "open";
+  await run("UPDATE rent_charges SET amount_paid = ?, status = ? WHERE id = ?", [totalPaid, newStatus, charge.id]);
+
+  const updatedCharge = await get(`${CHARGE_SELECT} WHERE c.id = ?`, [charge.id]);
+  return c.json({ ok: true, charge: updatedCharge }, 201);
 });
 
 // ── Dashboard summary ──────────────────────────────────────────────

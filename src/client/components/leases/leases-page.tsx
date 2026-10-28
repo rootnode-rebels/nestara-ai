@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Plus, Search } from "lucide-react";
+import { ClipboardList, Plus, Search, Printer } from "lucide-react";
 import { useApp } from "@/context";
 import { cn, daysBetween, formatDate, formatMoney, toIsoDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LeaseDialog } from "./lease-dialog";
 import type { Lease, LeaseStatus } from "@/types";
 import { PageShell } from "@/components/page-shell";
+import { generateLeaseAgreementHtml, printDocument } from "@/lib/document-generator";
 
 const STATUS_TONE: Record<string, string> = {
   active: "default",
@@ -105,6 +106,7 @@ export function LeasesPage({ navigate }: { navigate: (to: string) => void }) {
                   <TableHead>Term</TableHead>
                   <TableHead className="text-right">Rent</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-12 text-right">PDF</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -147,6 +149,38 @@ export function LeasesPage({ navigate }: { navigate: (to: string) => void }) {
                         <Badge variant={(STATUS_TONE[l.status] ?? "secondary") as never} className={cn("capitalize")}>
                           {l.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <button
+                          type="button"
+                          title="Print / Save 11-Month Lease Agreement"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const html = generateLeaseAgreementHtml({
+                              agreementNumber: `NSTR-LSE-${l.id.toString().padStart(4, "0")}`,
+                              landlordName: "Nestara Property Management",
+                              landlordContact: "desk@nestara.ai",
+                              tenantName: `${l.tenant_first_name || ""} ${l.tenant_last_name || ""}`.trim() || "Resident",
+                              propertyName: l.property_name || "Bangalore Residence",
+                              propertyAddress: "Bengaluru Metropolitan Region",
+                              propertyCity: "Bengaluru",
+                              unitName: l.unit_name || "Unit",
+                              bedrooms: 2,
+                              bathrooms: 2,
+                              startDate: l.start_date,
+                              endDate: l.end_date,
+                              monthlyRent: l.monthly_rent,
+                              deposit: l.deposit,
+                              rentDueDay: l.rent_due_day,
+                              lateFee: l.late_fee,
+                              currency: app.settings.currency,
+                            });
+                            printDocument(`Lease-Agreement-${l.unit_name}`, html);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border hover:bg-muted p-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </button>
                       </TableCell>
                     </TableRow>
                   );

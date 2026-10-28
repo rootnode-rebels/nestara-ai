@@ -19,95 +19,87 @@
  * stays a grey wash instead of turning the whole app green.
  */
 :root {
-  /* ── Surfaces (warm neutral, hue 85 — never blue-gray) ── */
-  --background: #ffffff;          /* oklch(1 0 0) */
-  --foreground: #1b1a19;          /* oklch(0.22 0.002 85) */
-  --card: #ffffff;                /* cards are the same white; the BORDER separates them */
-  --card-foreground: #1b1a19;
+  /* ── Clean Nordic Minimalist Surfaces (Crisp whites & zinc neutrals) ── */
+  --background: #fcfcfd;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
   --popover: #ffffff;
-  --popover-foreground: #1b1a19;
-  --muted: #f7f7f5;               /* oklch(0.975 0.002 85): a 2.5% step, not a 5% one */
-  --muted-foreground: #646360;    /* oklch(0.5 0.005 85) */
-  --faint: #9a9893;               /* oklch(0.68 0.007 85): placeholders and disabled only */
-  --border: #e5e3de;              /* oklch(0.915 0.007 85) */
-  --input: #e5e3de;
+  --popover-foreground: #09090b;
+  --muted: #f4f4f6;
+  --muted-foreground: #52525b;
+  --faint: #a1a1aa;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
 
-  /* ── Action: the ONE solid button per screen is ink, not the brand hue ── */
-  --primary: #1b1a19;
+  /* ── Action: Obsidian ink buttons and subtle hover washes ── */
+  --primary: #09090b;
   --primary-foreground: #ffffff;
-  /* Secondary is white with a raised shadow ring rather than a border. */
   --secondary: #ffffff;
-  --secondary-foreground: #1b1a19;
-  /* shadcn's neutral hover wash — deliberately NOT the brand. */
-  --accent: #f7f7f5;
-  --accent-foreground: #1b1a19;
+  --secondary-foreground: #09090b;
+  --accent: #f4f4f6;
+  --accent-foreground: #09090b;
 
-  /* ── Brand: OpenProperty's own hue (H 149.2, from icon.svg #16A34A). ──
-     It appears in exactly three places — the app icon, count badges, and the
-     focus ring — and never as a status badge. */
-  --brand: #31974e;               /* solid  L 0.60 C 85% */
-  --brand-hover: #287f41;         /* L 0.53 */
-  --brand-tint: #dcf9e0;          /* L 0.955 C 60% */
-  --brand-text: #2b6037;          /* L 0.44 C 70% — passes on the tint and on white */
+  /* ── Brand: Nordic Spruce / Pine (#059669) ── */
+  --brand: #059669;
+  --brand-hover: #047857;
+  --brand-tint: #ecfdf5;
+  --brand-text: #065f46;
   --on-brand: #ffffff;
-  --ring: #31974e;                /* focus ring = the brand solid */
+  --ring: #09090b;
 
-  /* ── Status: hue only differs; L and C% are shared across all four ── */
-  --info: #173ec4;
-  --info-tint: #ecf0f9;
-  --info-solid: #4977ed;
-  --success: #2b5f3c;
-  --success-tint: #dbf9e2;
-  --success-solid: #319656;
-  --warning: #664e27;
-  --warning-tint: #f9efdf;
-  --warning-solid: #a3772b;
-  --destructive: #8a2f2d;         /* the TEXT role: danger text on its tint */
-  --destructive-tint: #f9edec;
-  --destructive-solid: #e1363a;   /* the fill a danger button takes on hover */
+  /* ── Status Tokens (Restrained, high-clarity contrast) ── */
+  --info: #0284c7;
+  --info-tint: #f0f9ff;
+  --info-solid: #0ea5e9;
+  --success: #059669;
+  --success-tint: #ecfdf5;
+  --success-solid: #10b981;
+  --warning: #d97706;
+  --warning-tint: #fffbeb;
+  --warning-solid: #f59e0b;
+  --destructive: #dc2626;
+  --destructive-tint: #fef2f2;
+  --destructive-solid: #ef4444;
   --destructive-foreground: #ffffff;
 
-  /* ── The rail: surface-sunken, and its active row is a neutral ink wash.
-        Colour in the sidebar is reserved for counts, never for location. ── */
-  --sidebar: #f7f7f5;
-  --sidebar-foreground: #1b1a19;
+  /* ── Nordic Rail Sidebar ── */
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #09090b;
   --sidebar-accent: rgba(0, 0, 0, 0.04);
-  --sidebar-accent-foreground: #1b1a19;
-  --sidebar-border: #e5e3de;
+  --sidebar-accent-foreground: #09090b;
+  --sidebar-border: #e4e4e7;
 
-  /* Three edge recipes. Resting is an INSET ring: it costs no layout, so a
-     focus state can thicken it without shifting a pixel, and the radius stays
-     exactly what was asked for rather than becoming r - 1. */
+  /* Hairline borders and subtle micro-shadows */
   --edge-rest: inset 0 0 0 1px var(--border);
-  --edge-raised: 0 0 2px rgba(28, 40, 64, 0.18), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --edge-float: 0 0 0 1px rgba(28, 40, 64, 0.04), 0 4px 8px -4px rgba(28, 40, 64, 0.12),
-    0 4px 12px -2px rgba(24, 41, 75, 0.16);
-  --edge-solid: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(20, 20, 20, 0.12);
+  --edge-raised: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --edge-float: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.07);
+  --edge-solid: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-/* Same hues, re-tuned L and C% — a mirror of the light ramp reads muddy. */
+/* Nordic Minimalist Dark Palette */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #100f0e;
-    --foreground: #efeeed;
-    --card: #161615;
-    --card-foreground: #efeeed;
-    --popover: #161615;
-    --popover-foreground: #efeeed;
-    --muted: #222120;
-    --muted-foreground: #c0bdb9;
-    --faint: #82807c;
-    --border: #2e2e2c;
-    --input: #2e2e2c;
-    --primary: #efeeed;           /* the solid ink button inverts to a light one */
-    --primary-foreground: #100f0e;
-    --secondary: #161615;
-    --secondary-foreground: #efeeed;
-    --accent: #222120;
-    --accent-foreground: #efeeed;
-    --brand: #3c9d55;
-    --brand-hover: #4bc06a;
-    --brand-tint: #1a2b1d;
+    --background: #09090b;
+    --foreground: #f4f4f5;
+    --card: #121215;
+    --card-foreground: #f4f4f5;
+    --popover: #121215;
+    --popover-foreground: #f4f4f5;
+    --muted: #1c1c20;
+    --muted-foreground: #a1a1aa;
+    --faint: #71717a;
+    --border: #27272a;
+    --input: #27272a;
+    --primary: #f4f4f5;
+    --primary-foreground: #09090b;
+    --secondary: #18181b;
+    --secondary-foreground: #f4f4f5;
+    --accent: #1c1c20;
+    --accent-foreground: #f4f4f5;
+    --brand: #10b981;
+    --brand-hover: #34d399;
+    --brand-tint: #064e3b;
     --brand-text: #86db97;
     --ring: #3c9d55;
     --info: #b5c4e5;

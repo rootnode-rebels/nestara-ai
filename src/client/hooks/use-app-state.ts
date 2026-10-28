@@ -8,12 +8,14 @@ import type {
   RentCharge,
   Vendor,
   WorkOrder,
+  Application,
   NewProperty,
   NewUnit,
   NewTenant,
   NewLease,
   NewWorkOrder,
   NewVendor,
+  NewApplication,
 } from "../types";
 
 export interface AppSettings {
@@ -250,6 +252,22 @@ export function useAppState() {
     await api("DELETE", `/api/work-orders/${id}`);
   }, []);
 
+  // Application mutations ──────────────────────────────────────────
+
+  const listApplications = useCallback(async (): Promise<Application[]> => {
+    const data = await api<{ applications: Application[] }>("GET", "/api/applications");
+    return data.applications;
+  }, []);
+
+  const updateApplication = useCallback(async (id: number, patch: Partial<NewApplication>) => {
+    const res = await api<{ application: Application }>("PUT", `/api/applications/${id}`, patch);
+    return res.application;
+  }, []);
+
+  const deleteApplication = useCallback(async (id: number) => {
+    await api("DELETE", `/api/applications/${id}`);
+  }, []);
+
   return {
     // data
     properties, vendors, settings,
@@ -271,6 +289,8 @@ export function useAppState() {
     createVendor, updateVendor, deleteVendor,
     // work orders
     listWorkOrders, createWorkOrder, updateWorkOrder, deleteWorkOrder,
+    // applications
+    listApplications, updateApplication, deleteApplication,
   };
 }
 

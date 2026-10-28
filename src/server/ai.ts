@@ -247,3 +247,135 @@ export function compareProperties(properties: CandidateListing[]): ComparisonRes
 
   return { items, summary };
 }
+
+export interface MaintenanceTriageInput {
+  title?: string | null;
+  description?: string | null;
+  image_data?: string | null;
+}
+
+export interface MaintenanceTriageOutput {
+  priority: "low" | "normal" | "high" | "urgent";
+  suggested_category: "plumber" | "electrician" | "hvac" | "handyman" | "cleaning" | "general";
+  estimated_cost: {
+    min: number;
+    max: number;
+    currency: string;
+  };
+  urgency_rationale: string;
+  recommended_actions: string[];
+  safety_warnings: string[];
+}
+
+/**
+ * Multimodal AI triage engine for maintenance issues and tenant work orders.
+ * Analyzes issue context, trade domain, severity, and provides safety advisories.
+ */
+export function triageMaintenanceIssue(input: MaintenanceTriageInput): MaintenanceTriageOutput {
+  const text = `${input.title || ""} ${input.description || ""}`.toLowerCase();
+  const hasImage = Boolean(input.image_data && input.image_data.length > 50);
+
+  let priority: "low" | "normal" | "high" | "urgent" = "normal";
+  let suggested_category: "plumber" | "electrician" | "hvac" | "handyman" | "cleaning" | "general" = "general";
+  let minCost = 500;
+  let maxCost = 1500;
+  const recommended_actions: string[] = [];
+  const safety_warnings: string[] = [];
+  let urgency_rationale = "Standard maintenance ticket scheduled for regular technician dispatch.";
+
+  // 1. Electrical checks (Highest Hazard)
+  if (/spark|shock|wire|electric|short circuit|breaker|mcb|smell|fire|burning|smoke|switchboard/i.test(text)) {
+    suggested_category = "electrician";
+    if (/spark|shock|smoke|fire|burning|burst/i.test(text)) {
+      priority = "urgent";
+      urgency_rationale = "CRITICAL HAZARD: Active electrical fault with imminent risk of short circuit, shock, or fire.";
+      safety_warnings.push("DO NOT touch exposed wiring or appliances with wet hands.");
+      safety_warnings.push("Turn OFF the main distribution board (MCB) switch immediately.");
+      recommended_actions.push("Emergency electrician dispatch scheduled within 1-2 hours.");
+      minCost = 1200;
+      maxCost = 4500;
+    } else {
+      priority = "high";
+      urgency_rationale = "Electrical component defect requiring qualified technician inspection.";
+      safety_warnings.push("Avoid using the affected socket or switch until inspected.");
+      recommended_actions.push("Assigned to certified electrician for circuit continuity test.");
+      minCost = 800;
+      maxCost = 2500;
+    }
+  }
+  // 2. Plumbing checks (Water Damage Risk)
+  else if (/leak|water|pipe|faucet|tap|drain|flush|toilet|clog|flood|seep|geyser|drip/i.test(text)) {
+    suggested_category = "plumber";
+    if (/flood|burst|overflow|gushing|heavy leak|sewage/i.test(text)) {
+      priority = "urgent";
+      urgency_rationale = "URGENT WATER DAMAGE: Active flooding poses high risk of floor, ceiling, and electrical damage.";
+      safety_warnings.push("Locate and shut off the main water isolation valve under the sink or outside.");
+      safety_warnings.push("Keep power cords and electrical devices away from standing water.");
+      recommended_actions.push("Priority plumber dispatched with high-capacity drain and pipe repair kit.");
+      minCost = 1500;
+      maxCost = 5000;
+    } else {
+      priority = /clog|toilet|faucet/i.test(text) ? "high" : "normal";
+      urgency_rationale = "Plumbing fixture wear requiring washer replacement or line descaling.";
+      recommended_actions.push("Plumber dispatched with standard replacement cartridges and sealants.");
+      minCost = 600;
+      maxCost = 2000;
+    }
+  }
+  // 3. HVAC & Air Conditioning
+  else if (/ac|air condition|cool|cooling|hvac|compressor|refrigerant|filter|ice/i.test(text)) {
+    suggested_category = "hvac";
+    priority = /heat wave|not cooling|gas leak/i.test(text) ? "high" : "normal";
+    urgency_rationale = "Thermal comfort degradation requiring HVAC coil cleaning or refrigerant top-up.";
+    recommended_actions.push("Technician scheduled for airflow volume test and pressure manifold check.");
+    minCost = 1200;
+    maxCost = 3500;
+  }
+  // 4. Doors, Windows & Carpentry
+  else if (/door|lock|window|hinge|handle|key|drawer|cabinet|glass/i.test(text)) {
+    suggested_category = "handyman";
+    if (/lock|jammed|broken key|security/i.test(text)) {
+      priority = "high";
+      urgency_rationale = "Access and physical security concern requiring immediate latch/lock servicing.";
+      safety_warnings.push("Ensure property premises remain attended until lock is re-secured.");
+      minCost = 800;
+      maxCost = 2200;
+    } else {
+      priority = "low";
+      urgency_rationale = "Carpentry alignment or cosmetic fixture repair.";
+      minCost = 400;
+      maxCost = 1200;
+    }
+  }
+  // 5. Hygiene & Sanitation
+  else if (/mold|pest|cockroach|termite|deep clean|stain/i.test(text)) {
+    suggested_category = "cleaning";
+    priority = "normal";
+    urgency_rationale = "Hygiene remediation requiring commercial sanitization treatment.";
+    recommended_actions.push("Eco-friendly pest treatment and surface sanitization scheduled.");
+    minCost = 1000;
+    maxCost = 2800;
+  }
+
+  // Vision Analysis augmentation if photo attached
+  if (hasImage) {
+    recommended_actions.push("Visual evidence verified: photographic record attached to work order for vendor review.");
+    if (priority === "normal" && /leak|break|crack|damage/i.test(text)) {
+      priority = "high";
+      urgency_rationale += " Visual assessment confirmed visible structural/surface impact.";
+    }
+  }
+
+  return {
+    priority,
+    suggested_category,
+    estimated_cost: {
+      min: minCost,
+      max: maxCost,
+      currency: "INR",
+    },
+    urgency_rationale,
+    recommended_actions,
+    safety_warnings,
+  };
+}

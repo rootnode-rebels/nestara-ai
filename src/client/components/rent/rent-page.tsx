@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Receipt, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Receipt, Sparkles, Printer } from "lucide-react";
 import { useApp } from "@/context";
 import { addMonths, cn, currentPeriod, formatDate, formatMoney, formatPeriod } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PaymentDialog } from "./payment-dialog";
 import type { ChargeStatus, RentCharge } from "@/types";
 import { PageShell } from "@/components/page-shell";
+import { generateRentReceiptHtml, printDocument } from "@/lib/document-generator";
 
 const STATUS_TONE: Record<ChargeStatus, string> = {
   open: "bg-info-tint text-info",
@@ -51,6 +52,25 @@ export function RentPage() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  function handlePrintReceipt(c: RentCharge) {
+    const tenantName = [c.tenant_first_name, c.tenant_last_name].filter(Boolean).join(" ") || "Resident";
+    const propertyAddress = c.property_name ? `${c.property_name} — Unit ${c.unit_name || ""}` : "Nestara Residence";
+    const html = generateRentReceiptHtml({
+      receiptNumber: `REC-${c.period.replace("-", "")}-${c.id}`,
+      tenantName,
+      propertyName: c.property_name || "Nestara Living",
+      propertyAddress,
+      unitName: c.unit_name || "Standard Unit",
+      period: c.period,
+      dueDate: c.due_date,
+      amount: c.amount,
+      amountPaid: c.amount_paid,
+      status: c.status,
+      paymentMethod: "Bank Transfer / Digital",
+    });
+    printDocument(`Rent-Receipt-${c.period}-${c.id}`, html);
   }
 
   const totals = useMemo(() => {
@@ -181,16 +201,30 @@ export function RentPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        {c.status !== "paid" && c.status !== "waived" && (
-                          <Button size="sm" variant="outline" onClick={() => setPaymentTarget(c)}>
-                            Record payment
-                          </Button>
-                        )}
-                        {(c.status === "paid" || c.amount_paid > 0) && (
-                          <Button size="sm" variant="ghost" onClick={() => setPaymentTarget(c)}>
-                            View
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {c.status !== "paid" && c.status !== "waived" && (
+                            <Button size="sm" variant="outline" onClick={() => setPaymentTarget(c)}>
+                              Record payment
+                            </Button>
+                          )}
+                          {(c.status === "paid" || c.amount_paid > 0) && (
+                            <>
+                              <Button size="sm" variant="ghost" onClick={() => setPaymentTarget(c)}>
+                                View
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 text-xs"
+                                title="Print / Download PDF Receipt"
+                                onClick={() => handlePrintReceipt(c)}
+                              >
+                                <Printer className="h-3.5 w-3.5 text-muted-foreground" />
+                                Receipt
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

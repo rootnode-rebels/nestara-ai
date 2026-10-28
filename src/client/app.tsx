@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AppNav, reportLocation, type AppNavItem } from "@clawnify/app/client";
 import { useAppState } from "./hooks/use-app-state";
 import { useRouter, type Route } from "./hooks/use-router";
@@ -17,6 +17,7 @@ import { TenantPage } from "./components/tenants/tenant-page";
 import { LeasesPage } from "./components/leases/leases-page";
 import { RentPage } from "./components/rent/rent-page";
 import { MaintenancePage } from "./components/maintenance/maintenance-page";
+import { ApplicationsPage } from "./components/applications/applications-page";
 import { SettingsPage } from "./components/settings/settings-page";
 import { Button } from "./components/ui/button";
 import { ShieldCheck, Lock } from "lucide-react";
@@ -30,6 +31,7 @@ const LANDLORD_PORTFOLIO: AppNavItem[] = [
 ];
 
 const LANDLORD_OPERATIONS: AppNavItem[] = [
+  { id: "applications", label: "Applications", href: "/applications", icon: "clipboard-list", color: "blue" },
   { id: "rent", label: "Rent Ledger", href: "/rent", icon: "dollar-sign", color: "amber" },
   { id: "maintenance", label: "Maintenance", href: "/maintenance", icon: "list-checks", color: "orange" },
 ];
@@ -61,9 +63,38 @@ export function App() {
   const auth = useAuthProvider();
   const { path, route, navigate } = useRouter();
 
+  // Track previous user to detect smooth login / logout transitions
+  const prevUserRef = useRef<typeof auth.user>(auth.user);
+
   // Route visitors appropriately based on authentication state
   useEffect(() => {
     if (auth.loading) return;
+
+    const prevUser = prevUserRef.current;
+    prevUserRef.current = auth.user;
+
+    // Detect user login event
+    if (!prevUser && auth.user) {
+      if (auth.user.role === "tenant") {
+        navigate("/portal");
+        return;
+      } else if (auth.user.role === "landlord" || auth.user.role === "admin") {
+        if (path === "/" || path === "/explore" || path === "/portal") {
+          navigate("/dashboard");
+          return;
+        }
+      }
+    }
+
+    // Detect user logout event
+    if (prevUser && !auth.user) {
+      if (path !== "/explore") {
+        navigate("/explore");
+        return;
+      }
+    }
+
+    // Default route protections
     if (!auth.user && (path === "/" || path === "/dashboard")) {
       navigate("/explore");
     } else if (auth.user?.role === "tenant" && (path === "/" || path === "/dashboard")) {
@@ -102,6 +133,7 @@ export function App() {
     "tenants",
     "tenant",
     "leases",
+    "applications",
     "rent",
     "maintenance",
     "settings",
@@ -122,23 +154,29 @@ export function App() {
               />
             </div>
 
-            {/* Informational Sidebar Trust & Assistance Box */}
-            <div className="hidden md:flex flex-col gap-2 p-3 m-3 rounded-xl border border-border bg-muted/40 text-xs">
-              <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
-                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>Nestara Verified Living</span>
+            {/* Nordic Privacy & Security Assurance Box */}
+            <div className="hidden md:flex flex-col gap-2 p-3 m-3 rounded-lg border border-border bg-card/60 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>Personal Data Guard</span>
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  RLS Active
+                </span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                0% brokerage on all curated residences. Standard 2-month deposit norm.
+                Hardware-isolated session. Tenant PII and financials protected via strict Row-Level Security.
               </p>
-              <div className="pt-2 border-t border-border/50 space-y-1">
+              <div className="pt-2 border-t border-border space-y-1">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Bengaluru Units</span>
-                  <span className="font-semibold text-foreground">28 Verified</span>
+                  <span>Encryption</span>
+                  <span className="font-medium text-foreground">AES-256 GCM</span>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Concierge Desk</span>
-                  <span className="font-medium text-emerald-700 dark:text-emerald-400">Available</span>
+                  <span>Privacy Norm</span>
+                  <span className="font-medium text-foreground">Zero PII Leakage</span>
                 </div>
               </div>
             </div>
@@ -182,6 +220,7 @@ export function App() {
                 {route.name === "tenants" && <TenantsList navigate={navigate} />}
                 {route.name === "tenant" && <TenantPage id={route.id} navigate={navigate} />}
                 {route.name === "leases" && <LeasesPage navigate={navigate} />}
+                {route.name === "applications" && <ApplicationsPage navigate={navigate} />}
                 {route.name === "rent" && <RentPage />}
                 {route.name === "maintenance" && <MaintenancePage />}
                 {route.name === "settings" && <SettingsPage />}
