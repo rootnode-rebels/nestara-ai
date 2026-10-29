@@ -67,25 +67,25 @@ Nestara AI has undergone a full security audit and implemented defense-in-depth 
 
 ### Prerequisites
 - **Node.js:** `>= 20.0.0` (Tested on Node `v24.19.0`)
-- **pnpm:** `>= 9.0.0` (Tested on pnpm `12.15.0`)
+- **Package Manager:** `npm` (bundled with Node.js) or `pnpm` (`>= 9.0.0`)
 
 ### 1. Clone & Install Dependencies
 ```bash
 git clone https://github.com/rootnode-rebels/nestara-ai.git
 cd nestara-ai
-pnpm install
+npm install   # or: pnpm install
 ```
 
 ### 2. Initialize the Database
 Initialize the SQLite / D1 relational schema and seed default settings:
 ```bash
-pnpm db:migrate
+npm run db:migrate   # or: pnpm db:migrate
 ```
 *Applies relational tables, foreign key constraints, and seeds initial demo properties, units, and vendors.*
 
 ### 3. Start the Development Server
 ```bash
-pnpm dev
+npm run dev   # or: pnpm dev
 ```
 The application will boot concurrently:
 - **Frontend Web UI:** [http://localhost:5173](http://localhost:5173)
