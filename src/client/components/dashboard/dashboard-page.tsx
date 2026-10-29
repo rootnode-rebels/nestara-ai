@@ -13,6 +13,7 @@ import { api } from "@/api";
 import { cn, daysBetween, formatDate, formatMoney, toIsoDate } from "@/lib/utils";
 import type { DashboardSummary } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageShell } from "@/components/page-shell";
 
@@ -91,11 +92,9 @@ export function DashboardPage({ navigate }: { navigate: (to: string) => void }) 
                 View all
               </button>
             </div>
-            <dl className="space-y-3 text-sm">
-              <Row label="Properties" value={summary.properties} icon={<Building2 className="h-4 w-4" />} />
-              <Row label="Total units" value={summary.units} />
-              <Row label="Occupied" value={summary.occupied} tone="positive" />
-              <Row label="Vacant" value={summary.vacant} tone={summary.vacant > 0 ? "warn" : "default"} />
+            <OccupancyGauge rate={summary.occupancy_rate} occupied={summary.occupied} total={summary.units} />
+            <dl className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm">
+              <Row label="Active Properties" value={summary.properties} icon={<Building2 className="h-4 w-4" />} />
             </dl>
           </Card>
 
@@ -127,6 +126,34 @@ export function DashboardPage({ navigate }: { navigate: (to: string) => void }) 
                 sub={summary.overdue_count ? `${summary.overdue_count} charge${summary.overdue_count === 1 ? "" : "s"}` : undefined}
                 tone={summary.overdue_total > 0 ? "danger" : "default"}
               />
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-border/60 space-y-1.5">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Monthly Cashflow Realization</span>
+                <span className="font-semibold text-foreground">
+                  {summary.month_collected + summary.month_outstanding > 0
+                    ? `${Math.round((summary.month_collected / (summary.month_collected + summary.month_outstanding)) * 100)}% collected`
+                    : "100% collected"}
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden flex">
+                <div
+                  style={{ width: `${(summary.month_collected / Math.max(1, summary.month_collected + summary.month_outstanding)) * 100}%` }}
+                  className="bg-emerald-600 h-full transition-all duration-500"
+                />
+                <div
+                  style={{ width: `${(summary.month_outstanding / Math.max(1, summary.month_collected + summary.month_outstanding)) * 100}%` }}
+                  className="bg-amber-500 h-full transition-all duration-500"
+                />
+              </div>
+              <div className="flex items-center gap-4 text-[11px] text-muted-foreground pt-0.5">
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-600" /> Settled</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" /> Pending</span>
+                {summary.overdue_total > 0 && (
+                  <span className="flex items-center gap-1.5 text-rose-600 font-medium"><span className="h-2 w-2 rounded-full bg-rose-600" /> Overdue Arrears</span>
+                )}
+              </div>
             </div>
           </Card>
         </section>
@@ -193,14 +220,24 @@ export function DashboardPage({ navigate }: { navigate: (to: string) => void }) 
                           {[l.property_name, l.unit_name].filter(Boolean).join(" · ")}
                         </p>
                       </div>
-                      <div className="text-right text-xs">
-                        <div className="font-medium text-foreground">{formatDate(l.end_date)}</div>
-                        <div className={cn(
-                          "text-muted-foreground",
-                          days <= 14 && "text-destructive font-medium",
-                        )}>
-                          {days < 0 ? "Already ended" : days === 0 ? "Today" : `in ${days} day${days === 1 ? "" : "s"}`}
+                      <div className="flex items-center gap-3">
+                        <div className="text-right text-xs">
+                          <div className="font-medium text-foreground">{formatDate(l.end_date)}</div>
+                          <div className={cn(
+                            "text-muted-foreground",
+                            days <= 14 && "text-destructive font-medium",
+                          )}>
+                            {days < 0 ? "Already ended" : days === 0 ? "Today" : `in ${days} day${days === 1 ? "" : "s"}`}
+                          </div>
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs shrink-0"
+                          onClick={() => navigate("/leases")}
+                        >
+                          Renew
+                        </Button>
                       </div>
                     </li>
                   );
@@ -210,6 +247,61 @@ export function DashboardPage({ navigate }: { navigate: (to: string) => void }) 
           </Card>
         </section>
     </PageShell>
+  );
+}
+
+
+function OccupancyGauge({ rate, occupied, total }: { rate: number; occupied: number; total: number }) {
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (rate / 100) * circumference;
+
+  return (
+    <div className="flex items-center gap-4 py-2">
+      <div className="relative flex items-center justify-center shrink-0">
+        <svg className="w-20 h-20 transform -rotate-90">
+          <circle
+            cx="40"
+            cy="40"
+            r={radius}
+            className="text-muted/60"
+            strokeWidth="7"
+            stroke="currentColor"
+            fill="transparent"
+          />
+          <circle
+            cx="40"
+            cy="40"
+            r={radius}
+            className="text-emerald-600 transition-all duration-700 ease-out"
+            strokeWidth="7"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            stroke="currentColor"
+            fill="transparent"
+          />
+        </svg>
+        <div className="absolute flex flex-col items-center justify-center text-center">
+          <span className="text-base font-bold text-foreground tracking-tight">{rate}%</span>
+          <span className="text-[9px] text-muted-foreground uppercase font-medium">Occupied</span>
+        </div>
+      </div>
+      <div className="flex-1 space-y-1 text-xs">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Occupied:</span>
+          <span className="font-semibold text-emerald-600">{occupied} units</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Vacant:</span>
+          <span className="font-semibold text-amber-600">{total - occupied} units</span>
+        </div>
+        <div className="flex justify-between border-t border-border/60 pt-1">
+          <span className="text-muted-foreground">Portfolio Total:</span>
+          <span className="font-semibold text-foreground">{total} units</span>
+        </div>
+      </div>
+    </div>
   );
 }
 

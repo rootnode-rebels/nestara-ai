@@ -15,7 +15,11 @@ import {
   Briefcase,
   Calendar,
   Building,
+  Eye,
+  EyeOff,
+  ShieldCheck,
 } from "lucide-react";
+import { maskEmail, maskPhone, maskIncome, logPiiAccess } from "@/lib/privacy";
 import { useApp } from "@/context";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +58,7 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
   const [filter, setFilter] = useState<ApplicationStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [maskPii, setMaskPii] = useState(true);
   const [editNotes, setEditNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
@@ -191,14 +196,33 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
           </TabsList>
         </Tabs>
 
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search applicant, property…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (maskPii) {
+                logPiiAccess("reveal_pii", "application", undefined, "Landlord revealed applicant PII in table");
+              }
+              setMaskPii(!maskPii);
+            }}
+            className="gap-1.5 text-xs h-9 shrink-0"
+            title={maskPii ? "PII currently concealed. Click to reveal." : "Click to mask sensitive PII."}
+          >
+            {maskPii ? <EyeOff className="h-3.5 w-3.5 text-emerald-600" /> : <Eye className="h-3.5 w-3.5 text-muted-foreground" />}
+            <span>{maskPii ? "PII Masked" : "PII Visible"}</span>
+          </Button>
+
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search applicant, property…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
         </div>
       </div>
 
@@ -240,13 +264,13 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
                         {item.email && (
                           <span className="flex items-center gap-1">
                             <Mail className="h-3 w-3 shrink-0" />
-                            {item.email}
+                            {maskPii ? maskEmail(item.email) : item.email}
                           </span>
                         )}
                         {item.phone && (
                           <span className="flex items-center gap-1">
                             <Phone className="h-3 w-3 shrink-0" />
-                            {item.phone}
+                            {maskPii ? maskPhone(item.phone) : item.phone}
                           </span>
                         )}
                       </div>
@@ -264,7 +288,7 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
                     <TableCell>
                       {item.monthly_income ? (
                         <div className="font-medium tabular-nums text-foreground">
-                          {formatMoney(item.monthly_income, app.settings.currency)}/mo
+                          {maskPii ? maskIncome(item.monthly_income, app.settings.currency) : `${formatMoney(item.monthly_income, app.settings.currency)}/mo`}
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">Not provided</span>

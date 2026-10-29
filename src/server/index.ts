@@ -17,6 +17,7 @@ app.use("*", secureHeaders({
   referrerPolicy: "strict-origin-when-cross-origin",
   strictTransportSecurity: "max-age=31536000; includeSubDomains",
   xXssProtection: "1; mode=block",
+  crossOriginResourcePolicy: "same-origin",
 }));
 
 // Security Audit Fix (SEC-08 & SEC-04): Strict CORS with credentials
@@ -444,6 +445,21 @@ async function ensureSeeded(): Promise<void> {
       WHERE users.role = 'tenant' AND (users.tenant_id IS NULL OR users.tenant_id NOT IN (SELECT id FROM tenants))
     `).catch(() => {});
 
+    // Ensure audit_logs table exists for DPDP/GDPR compliance
+    await run(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        user_email TEXT,
+        action TEXT NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id INTEGER,
+        details TEXT,
+        ip_address TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `).catch(() => {});
+
     seeded = true;
   } catch (err) {
     console.error("[ensureSeeded error]", err);
@@ -496,6 +512,12 @@ const LoginInput = z.object({
   email: z.string().email(),
   password: z.string().min(1, "Password is required"),
 });
+
+interface FailedLoginTracker {
+  count: number;
+  lockedUntil?: number;
+}
+const failedLoginTracker = new Map<string, FailedLoginTracker>();
 
 app.post("/api/auth/register", async (c) => {
   const parsed = await parseJson(c, RegisterInput);
@@ -564,17 +586,54 @@ app.post("/api/auth/login", async (c) => {
   const { email, password } = parsed.data;
 
   const normalizedEmail = email.trim().toLowerCase();
+  const now = Date.now();
+  const lockout = failedLoginTracker.get(normalizedEmail);
+  if (lockout && lockout.lockedUntil && now < lockout.lockedUntil) {
+    const remainingSecs = Math.ceil((lockout.lockedUntil - now) / 1000);
+    c.header("Retry-After", String(remainingSecs));
+    return c.json(
+      {
+        error: `Account temporarily locked due to multiple failed login attempts. Please try again in ${Math.ceil(remainingSecs / 60)} minutes.`,
+        code: "ACCOUNT_LOCKED",
+        retry_after_seconds: remainingSecs,
+      },
+      429
+    );
+  }
+  const recordFailure = () => {
+    const record = failedLoginTracker.get(normalizedEmail) || { count: 0 };
+    record.count += 1;
+    if (record.count >= 5) {
+      record.lockedUntil = now + 15 * 60 * 1000;
+      failedLoginTracker.set(normalizedEmail, record);
+      return { locked: true, remaining: 0 };
+    }
+    failedLoginTracker.set(normalizedEmail, record);
+    return { locked: false, remaining: 5 - record.count };
+  };
+
   const user = await get<UserRecord>("SELECT * FROM users WHERE lower(email) = ?", [normalizedEmail]);
   if (!user) {
     // Equalize timing response to prevent enumeration of registered emails (SEC-06)
     await hashPassword(password, "00000000000000000000000000000000");
-    return c.json({ error: "Invalid email or password" }, 401);
+    const res = recordFailure();
+    if (res.locked) {
+      return c.json({ error: "Too many failed attempts. Account locked for 15 minutes for your security.", code: "ACCOUNT_LOCKED", retry_after_seconds: 900 }, 429);
+    }
+    return c.json({ error: "Invalid email or password", attempts_remaining: res.remaining }, 401);
   }
 
   const valid = await verifyPassword(password, user.password_hash, user.salt);
   if (!valid) {
-    return c.json({ error: "Invalid email or password" }, 401);
+    const res = recordFailure();
+    if (res.locked) {
+      return c.json({ error: "Too many failed attempts. Account locked for 15 minutes for your security.", code: "ACCOUNT_LOCKED", retry_after_seconds: 900 }, 429);
+    }
+    return c.json({ error: "Invalid email or password", attempts_remaining: res.remaining }, 401);
   }
+
+  // Clear failed counter on success
+  failedLoginTracker.delete(normalizedEmail);
 
   const token = await generateToken(user, c);
   const isSecure = c.req.url.startsWith("https");
@@ -592,6 +651,41 @@ app.post("/api/auth/login", async (c) => {
   });
 });
 
+
+
+const AuditLogInput = z.object({
+  action: z.string().min(1).max(50),
+  target_type: z.string().min(1).max(50),
+  target_id: z.number().int().optional().nullable(),
+  details: z.string().max(500).optional().nullable(),
+});
+
+app.post("/api/audit/log", async (c) => {
+  const user = await verifyToken(c);
+  const parsed = await parseJson(c, AuditLogInput);
+  if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+
+  const ip =
+    c.req.header("cf-connecting-ip") ||
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "client-ip";
+
+  await run(
+    `INSERT INTO audit_logs (user_id, user_email, action, target_type, target_id, details, ip_address)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user?.sub ?? null,
+      user?.email ?? null,
+      parsed.data.action,
+      parsed.data.target_type,
+      parsed.data.target_id ?? null,
+      parsed.data.details ?? null,
+      ip,
+    ]
+  ).catch(() => {});
+
+  return c.json({ ok: true }, 201);
+});
 
 app.get("/api/auth/me", async (c) => {
   const payload = await verifyToken(c);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Mail, Phone, Plus, Search, User } from "lucide-react";
+import { Mail, Phone, Plus, Search, User, Eye, EyeOff } from "lucide-react";
+import { maskEmail, maskPhone, logPiiAccess } from "@/lib/privacy";
 import { useApp } from "@/context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,6 +16,7 @@ export function TenantsList({ navigate }: { navigate: (to: string) => void }) {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [maskPii, setMaskPii] = useState(true);
 
   async function load() {
     try {
@@ -52,14 +54,33 @@ export function TenantsList({ navigate }: { navigate: (to: string) => void }) {
       width="max-w-6xl"
     >
 
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, phone, property, or unit"
-            className="pl-9"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (maskPii) {
+                logPiiAccess("reveal_pii", "tenant", undefined, "Landlord revealed tenant directory PII");
+              }
+              setMaskPii(!maskPii);
+            }}
+            className="gap-1.5 text-xs h-9 shrink-0"
+            title={maskPii ? "PII masked. Click to reveal contact details." : "Click to mask PII."}
+          >
+            {maskPii ? <EyeOff className="h-3.5 w-3.5 text-emerald-600" /> : <Eye className="h-3.5 w-3.5 text-muted-foreground" />}
+            <span>{maskPii ? "PII Masked" : "PII Visible"}</span>
+          </Button>
+
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, phone, property, or unit"
+              className="pl-9 h-9"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
         </div>
 
         {loading ? (
@@ -105,14 +126,14 @@ export function TenantsList({ navigate }: { navigate: (to: string) => void }) {
                     <TableCell>
                       {t.email ? (
                         <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                          <Mail className="h-3 w-3" /> {t.email}
+                          <Mail className="h-3 w-3" /> {maskPii ? maskEmail(t.email) : t.email}
                         </span>
                       ) : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
                       {t.phone ? (
                         <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                          <Phone className="h-3 w-3" /> {t.phone}
+                          <Phone className="h-3 w-3" /> {maskPii ? maskPhone(t.phone) : t.phone}
                         </span>
                       ) : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>

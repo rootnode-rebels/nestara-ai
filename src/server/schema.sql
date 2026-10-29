@@ -183,6 +183,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
 
+-- ── Audit Logs (Security & Compliance Tracking) ────────────────────
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  user_email TEXT,
+  action TEXT NOT NULL,                        -- 'reveal_pii' | 'export_data' | 'update_role' | 'delete_record'
+  target_type TEXT NOT NULL,                   -- 'tenant' | 'application' | 'lease' | 'rent_ledger'
+  target_id INTEGER,
+  details TEXT,
+  ip_address TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
+
 -- Demo data is seeded by the app on first read (ensureSeeded in
 -- src/server/index.ts), never here: this file is applied as DDL only.
 
