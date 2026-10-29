@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm run db:migrate && concurrently -n ui,api -c cyan,green \"vite\" \"wrangler dev --port 8787\"",
-    "db:migrate": "wrangler d1 execute open-property-db --local --file=src/server/schema.sql",
-    "build": "vite build",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "dev": "npm run db:migrate && npx concurrently -n ui,api -c cyan,green \"npx vite\" \"npx wrangler dev --port 8787\"",
+    "db:migrate": "npx wrangler d1 execute open-property-db --local --file=src/server/schema.sql",
+    "build": "npx vite build",
+    "typecheck": "npx tsc --noEmit",
+    "test": "npx vitest run"
   },
   "dependencies": {
     "@clawnify/app": "^0.2.1",
