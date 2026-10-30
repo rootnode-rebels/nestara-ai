@@ -84,4 +84,19 @@ describe("Authentication & Cryptography — JWT Session Generation & Signature",
     const secret = "nestara-ai-jwt-dev-secret-key-at-least-32-chars-long";
     await expect(verify(tampered, secret, "HS256")).rejects.toThrow();
   });
+  it("embeds admin and landlord roles accurately in tokens", async () => {
+    const adminUser: UserRecord = {
+      ...dummyUser,
+      id: 1,
+      email: "admin@nestara.ai",
+      role: "admin",
+      tenant_id: null,
+    };
+    const token = await generateToken(adminUser);
+    const secret = "nestara-ai-jwt-dev-secret-key-at-least-32-chars-long";
+    const payload = (await verify(token, secret, "HS256")) as Record<string, unknown>;
+    expect(payload.role).toBe("admin");
+    expect(payload.sub).toBe(1);
+    expect(payload.tenant_id).toBeNull();
+  });
 });

@@ -16,6 +16,8 @@ import type {
   NewWorkOrder,
   NewVendor,
   NewApplication,
+  DocumentRecord,
+  LedgerBlockRecord,
 } from "../types";
 
 export interface AppSettings {
@@ -268,6 +270,57 @@ export function useAppState() {
     await api("DELETE", `/api/applications/${id}`);
   }, []);
 
+  // Document Authenticator & Distributed Ledger ────────────────────
+
+  const listDocuments = useCallback(async (params?: { status?: string; type?: string; tenant_id?: number }): Promise<DocumentRecord[]> => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.type) qs.set("type", params.type);
+    if (params?.tenant_id) qs.set("tenant_id", String(params.tenant_id));
+    const path = qs.toString() ? `/api/documents?${qs.toString()}` : "/api/documents";
+    const data = await api<{ documents: DocumentRecord[] }>("GET", path);
+    return data.documents;
+  }, []);
+
+  const getDocument = useCallback(async (id: number | string): Promise<DocumentRecord> => {
+    const data = await api<{ document: DocumentRecord }>("GET", `/api/documents/${id}`);
+    return data.document;
+  }, []);
+
+  const verifyDocument = useCallback(async (payload: {
+    document_type: string;
+    file_name: string;
+    file_size?: number;
+    mime_type?: string;
+    file_data?: string | null;
+    extracted_fields?: Record<string, unknown> | null;
+    metadata_text?: string | null;
+    tenant_id?: number | null;
+  }) => {
+    const data = await api<{ document_id: number; report: any }>("POST", "/api/documents/verify", payload);
+    return data;
+  }, []);
+
+  const deleteDocument = useCallback(async (id: number) => {
+    await api("DELETE", `/api/documents/${id}`);
+  }, []);
+
+  const getLedgerBlocks = useCallback(async (): Promise<LedgerBlockRecord[]> => {
+    const data = await api<{ blocks: LedgerBlockRecord[] }>("GET", "/api/ledger/blocks");
+    return data.blocks;
+  }, []);
+
+  const verifyLedgerChain = useCallback(async () => {
+    const data = await api<{ valid: boolean; total_blocks: number; broken_at?: number; error?: string }>("GET", "/api/ledger/verify-chain");
+    return data;
+  }, []);
+
+  const batchVerifyDocuments = useCallback(async () => {
+    const data = await api<{ ok: boolean; verified_count: number }>("POST", "/api/documents/verify-batch", {});
+    return data;
+  }, []);
+
+
   return {
     // data
     properties, vendors, settings,
@@ -291,6 +344,8 @@ export function useAppState() {
     listWorkOrders, createWorkOrder, updateWorkOrder, deleteWorkOrder,
     // applications
     listApplications, updateApplication, deleteApplication,
+    // documents & distributed ledger
+    listDocuments, getDocument, verifyDocument, deleteDocument, getLedgerBlocks, verifyLedgerChain, batchVerifyDocuments,
   };
 }
 

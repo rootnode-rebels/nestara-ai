@@ -255,3 +255,60 @@ export interface PublicListing {
   property_color: string;
 }
 
+
+// ── Document Authenticity & Distributed Ledger Types ───────────────
+export type DocumentVerificationStatus = "original" | "suspicious" | "fake" | "pending";
+export type ForensicVerdict = "ORIGINAL" | "SUSPICIOUS" | "FAKE / TAMPERED" | "UNVERIFIED";
+
+export interface AlgorithmicCheck {
+  code: string;
+  name: string;
+  passed: boolean;
+  severity: "critical" | "warning" | "info";
+  penalty: number;
+  details: string;
+}
+
+export interface DocumentRecord {
+  id: number;
+  uuid: string;
+  tenant_id: number | null;
+  application_id: number | null;
+  document_type: "aadhaar" | "pan" | "payslip" | "bank_statement" | "lease_agreement" | "employment_letter" | "other";
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  file_hash_sha256: string;
+  extracted_fields: Record<string, any>;
+  verification_status: DocumentVerificationStatus;
+  authenticity_score: number;
+  forensic_verdict: ForensicVerdict;
+  forensic_details: {
+    flags?: string[];
+    summary?: string;
+  };
+  algorithm_checks: AlgorithmicCheck[];
+  ledger_block_hash: string | null;
+  verified_at: string | null;
+  created_at: string;
+  tenant_first_name?: string | null;
+  tenant_last_name?: string | null;
+  tenant_email?: string | null;
+  applicant_first_name?: string | null;
+  applicant_last_name?: string | null;
+  ledger_proof?: LedgerBlockRecord | null;
+}
+
+export interface LedgerBlockRecord {
+  block_index: number;
+  block_hash: string;
+  previous_block_hash: string;
+  merkle_root: string;
+  document_uuid: string;
+  document_hash: string;
+  authenticity_score: number;
+  verdict: string;
+  validator_node: string;
+  timestamp: string;
+  signature: string;
+}

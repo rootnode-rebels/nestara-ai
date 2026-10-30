@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/context";
+import { api } from "@/api";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDelete } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -47,6 +49,49 @@ export function WorkOrderDialog({ open, onOpenChange, workOrder, defaults, onSav
   const [cost, setCost] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [triaging, setTriaging] = useState(false);
+  const [triagePill, setTriagePill] = useState<string | null>(null);
+
+  async function handleAITriage() {
+    if (!title.trim() && !description.trim()) return;
+    setTriaging(true);
+    setTriagePill(null);
+    try {
+      const res = await api<{
+        triage: {
+          priority: "low" | "normal" | "high" | "urgent";
+          suggested_category: string;
+          estimated_cost: { min: number; max: number; currency: string };
+          urgency_rationale: string;
+          recommended_actions: string[];
+          safety_warnings: string[];
+        };
+      }>("POST", "/api/ai/triage-maintenance", {
+        title: title || "Maintenance Request",
+        description: description || null,
+      });
+
+      if (res.triage.priority) setPriority(res.triage.priority);
+      if (res.triage.estimated_cost?.max) {
+        const avg = Math.round((res.triage.estimated_cost.min + res.triage.estimated_cost.max) / 2);
+        setCost(String(avg));
+      }
+      const matchedVendor = app.vendors.find((v) => v.category === res.triage.suggested_category);
+      if (matchedVendor) setVendorId(matchedVendor.id);
+
+      if (res.triage.urgency_rationale) {
+        setNotes((prev) => prev ? `${prev}\n[AI Triage]: ${res.triage.urgency_rationale}` : `[AI Triage]: ${res.triage.urgency_rationale}`);
+      }
+
+      setTriagePill(`AI Auto-Triage: ${res.triage.priority.toUpperCase()} Priority • Estimated ₹${res.triage.estimated_cost?.min} - ₹${res.triage.estimated_cost?.max}`);
+      setTimeout(() => setTriagePill(null), 8000);
+    } catch (err) {
+      app.setError((err as Error).message);
+    } finally {
+      setTriaging(false);
+    }
+  }
+
 
   useEffect(() => {
     if (!open) return;

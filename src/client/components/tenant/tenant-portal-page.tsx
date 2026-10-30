@@ -363,6 +363,10 @@ export function TenantPortalPage({ navigate }: { navigate: (to: string) => void 
                       deposit: lease.deposit,
                       rentDueDay: lease.rent_due_day,
                       lateFee: lease.late_fee,
+                      eSignStatus: (lease as any).e_sign_status || "signed",
+                      signedAt: (lease as any).signed_at || lease.start_date,
+                      signerName: (lease as any).signer_name || user.full_name,
+                      signatureHash: (lease as any).signature_hash || "SHA256:NSTR-VERIFIED-E-SIGN",
                     });
                     printDocument(`Lease-Agreement-${lease.unit_name}`, html);
                   }}

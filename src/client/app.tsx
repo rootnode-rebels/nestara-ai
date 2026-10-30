@@ -18,6 +18,7 @@ import { LeasesPage } from "./components/leases/leases-page";
 import { RentPage } from "./components/rent/rent-page";
 import { MaintenancePage } from "./components/maintenance/maintenance-page";
 import { ApplicationsPage } from "./components/applications/applications-page";
+import { DocumentsPage } from "./components/documents/documents-page";
 import { SettingsPage } from "./components/settings/settings-page";
 import { Button } from "./components/ui/button";
 import { ShieldCheck, Lock } from "lucide-react";
@@ -32,6 +33,7 @@ const LANDLORD_PORTFOLIO: AppNavItem[] = [
 
 const LANDLORD_OPERATIONS: AppNavItem[] = [
   { id: "applications", label: "Applications", href: "/applications", icon: "clipboard-list", color: "blue" },
+  { id: "documents", label: "Verify Documents", href: "/documents", icon: "file-check", color: "green" },
   { id: "rent", label: "Rent Ledger", href: "/rent", icon: "dollar-sign", color: "amber" },
   { id: "maintenance", label: "Maintenance", href: "/maintenance", icon: "list-checks", color: "orange" },
 ];
@@ -221,6 +223,7 @@ export function App() {
                 {route.name === "tenant" && <TenantPage id={route.id} navigate={navigate} />}
                 {route.name === "leases" && <LeasesPage navigate={navigate} />}
                 {route.name === "applications" && <ApplicationsPage navigate={navigate} />}
+                {route.name === "documents" && <DocumentsPage navigate={navigate} />}
                 {route.name === "rent" && <RentPage />}
                 {route.name === "maintenance" && <MaintenancePage />}
                 {route.name === "settings" && <SettingsPage />}

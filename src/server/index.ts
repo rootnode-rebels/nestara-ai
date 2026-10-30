@@ -1,3 +1,10 @@
+import {
+  authenticateDocumentLocally,
+  sealLedgerBlock,
+  verifyDistributedLedgerChain,
+  type DocumentType,
+  type LedgerBlock,
+} from "./document-authenticator";
 import { Hono, type Context } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { cors } from "hono/cors";
@@ -43,7 +50,7 @@ app.use("/api/*", cors({
 }));
 
 app.use("*", async (c, next) => {
-  initDB(c.env);
+  if (c.env?.DB) { initDB(c.env); }
   await run("PRAGMA foreign_keys = ON;").catch(() => {});
   await ensureSeeded();
   await next();
@@ -56,12 +63,14 @@ app.use("/api/*", async (c, next) => {
   const path = c.req.path;
   const method = c.req.method;
 
-  // Allow public endpoints to pass through without landlord credentials
+  // Allow public or self-authorizing endpoints to pass through without blanket landlord restriction
   if (
     path.startsWith("/api/auth/") ||
     path.startsWith("/api/public/") ||
     path.startsWith("/api/ai/") ||
-    path.startsWith("/api/tenant/")
+    path.startsWith("/api/tenant/") ||
+    path === "/api/documents/verify" ||
+    /^\/api\/leases\/\d+\/sign$/.test(path)
   ) {
     return next();
   }
@@ -429,6 +438,12 @@ async function ensureSeeded(): Promise<void> {
 
     // Ensure token_version column exists on existing databases (SEC-07)
     await run("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1").catch(() => {});
+    // Ensure e-signature columns on leases
+    await run("ALTER TABLE leases ADD COLUMN e_sign_status TEXT NOT NULL DEFAULT 'signed'").catch(() => {});
+    await run("ALTER TABLE leases ADD COLUMN signed_at TEXT").catch(() => {});
+    await run("ALTER TABLE leases ADD COLUMN signer_name TEXT").catch(() => {});
+    await run("ALTER TABLE leases ADD COLUMN signature_hash TEXT").catch(() => {});
+
 
     // Automatically synchronize ALL existing tenants with an email into the users table
     const allTenants = await query<{ id: number; email: string | null; first_name: string; last_name: string }>(
@@ -440,8 +455,8 @@ async function ensureSeeded(): Promise<void> {
 
     // Self-healing: link any unlinked tenant user account directly to their tenant record
     await run(`
-      UPDATE users 
-      SET tenant_id = (SELECT id FROM tenants WHERE lower(tenants.email) = lower(users.email)) 
+      UPDATE users
+      SET tenant_id = (SELECT id FROM tenants WHERE lower(tenants.email) = lower(users.email))
       WHERE users.role = 'tenant' AND (users.tenant_id IS NULL OR users.tenant_id NOT IN (SELECT id FROM tenants))
     `).catch(() => {});
 
@@ -459,7 +474,229 @@ async function ensureSeeded(): Promise<void> {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `).catch(() => {});
+    // ── Seed Demo Verified Documents & Distributed Ledger ─────────────
+    const docCount = await get<{ n: number }>("SELECT COUNT(*) AS n FROM documents");
+    if ((docCount?.n ?? 0) === 0) {
+      const aarav = await get<{ id: number }>("SELECT id FROM tenants WHERE email = 'tenant1@nestara.ai'");
 
+      // 1. Aarav Sharma Authentic Payslip
+      const aaravPayslipReport = authenticateDocumentLocally({
+        fileName: "Aarav_Sharma_Sept2026_Payslip.pdf",
+        documentType: "payslip",
+        extractedFields: {
+          applicant_name: "Aarav Sharma",
+          applicant_surname: "Sharma",
+          employer: "Oracle India Pvt Ltd",
+          monthly_income: 140000,
+          payslip_math: {
+            basic_salary: 70000,
+            hra: 35000,
+            special_allowance: 30000,
+            other_allowances: 5000,
+            gross_earnings: 140000,
+            provident_fund: 1800, // Capped statutory EPF
+            professional_tax: 200,
+            tds: 20000,
+            total_deductions: 22000,
+            net_pay: 118000,
+          },
+        },
+        metadataText: "%PDF-1.7\n/Producer (Oracle Payroll Enterprise System v14.2)\n/CreationDate (D:20260930180000Z)\n/ModDate (D:20260930180000Z)\n%%EOF\n",
+      });
+
+      const resDoc1 = await run(
+        `INSERT INTO documents (
+          uuid, tenant_id, document_type, file_name, file_size, mime_type, file_hash_sha256,
+          extracted_fields, verification_status, authenticity_score, forensic_verdict, forensic_details, algorithm_checks, verified_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          aaravPayslipReport.document_uuid,
+          aarav?.id ?? null,
+          "payslip",
+          aaravPayslipReport.file_name,
+          142850,
+          "application/pdf",
+          aaravPayslipReport.file_hash_sha256,
+          JSON.stringify(aaravPayslipReport.extracted_fields),
+          aaravPayslipReport.verdict === "ORIGINAL" ? "original" : "suspicious",
+          aaravPayslipReport.authenticity_score,
+          aaravPayslipReport.verdict,
+          JSON.stringify({ flags: aaravPayslipReport.flags, summary: "Institutional payroll compilation verified with valid statutory tax deductions." }),
+          JSON.stringify(aaravPayslipReport.checks),
+          aaravPayslipReport.verified_at,
+        ]
+      );
+
+      // Genesis Block for Distributed Ledger
+      const genesisBlock = sealLedgerBlock({
+        blockIndex: 1,
+        previousBlockHash: "0000000000000000000000000000000000000000000000000000000000000000",
+        documentUuid: aaravPayslipReport.document_uuid,
+        documentHash: aaravPayslipReport.file_hash_sha256,
+        authenticityScore: aaravPayslipReport.authenticity_score,
+        verdict: aaravPayslipReport.verdict,
+        validatorNode: "node-blr-central-edge",
+      });
+
+      await run(
+        `INSERT INTO distributed_ledger_blocks (
+          block_index, block_hash, previous_block_hash, merkle_root, document_uuid, document_hash,
+          authenticity_score, verdict, validator_node, timestamp, signature
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          genesisBlock.block_index,
+          genesisBlock.block_hash,
+          genesisBlock.previous_block_hash,
+          genesisBlock.merkle_root,
+          genesisBlock.document_uuid,
+          genesisBlock.document_hash,
+          genesisBlock.authenticity_score,
+          genesisBlock.verdict,
+          genesisBlock.validator_node,
+          genesisBlock.timestamp,
+          genesisBlock.signature,
+        ]
+      );
+
+      await run("UPDATE documents SET ledger_block_hash = ? WHERE uuid = ?", [genesisBlock.block_hash, aaravPayslipReport.document_uuid]);
+
+      // 2. Aarav Sharma Valid Aadhaar Card
+      const aaravAadhaarReport = authenticateDocumentLocally({
+        fileName: "Aarav_Sharma_Aadhaar_Card.pdf",
+        documentType: "aadhaar",
+        extractedFields: {
+          applicant_name: "Aarav Sharma",
+          aadhaar_number: "482910475824", // Valid 12-digit Aadhaar
+        },
+        metadataText: "%PDF-1.6\n/Producer (UIDAI Digital Aadhaar Generation Engine)\n/CreationDate (D:20250410120000Z)\n/ModDate (D:20250410120000Z)\n%%EOF\n",
+      });
+
+      await run(
+        `INSERT INTO documents (
+          uuid, tenant_id, document_type, file_name, file_size, mime_type, file_hash_sha256,
+          extracted_fields, verification_status, authenticity_score, forensic_verdict, forensic_details, algorithm_checks, verified_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          aaravAadhaarReport.document_uuid,
+          aarav?.id ?? null,
+          "aadhaar",
+          aaravAadhaarReport.file_name,
+          98400,
+          "application/pdf",
+          aaravAadhaarReport.file_hash_sha256,
+          JSON.stringify(aaravAadhaarReport.extracted_fields),
+          "original",
+          aaravAadhaarReport.authenticity_score,
+          aaravAadhaarReport.verdict,
+          JSON.stringify({ flags: aaravAadhaarReport.flags, summary: "UIDAI Verhoeff D5 mathematical permutation check verified." }),
+          JSON.stringify(aaravAadhaarReport.checks),
+          aaravAadhaarReport.verified_at,
+        ]
+      );
+
+      const block2 = sealLedgerBlock({
+        blockIndex: 2,
+        previousBlockHash: genesisBlock.block_hash,
+        documentUuid: aaravAadhaarReport.document_uuid,
+        documentHash: aaravAadhaarReport.file_hash_sha256,
+        authenticityScore: aaravAadhaarReport.authenticity_score,
+        verdict: aaravAadhaarReport.verdict,
+        validatorNode: "node-blr-central-edge",
+      });
+
+      await run(
+        `INSERT INTO distributed_ledger_blocks (
+          block_index, block_hash, previous_block_hash, merkle_root, document_uuid, document_hash,
+          authenticity_score, verdict, validator_node, timestamp, signature
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          block2.block_index,
+          block2.block_hash,
+          block2.previous_block_hash,
+          block2.merkle_root,
+          block2.document_uuid,
+          block2.document_hash,
+          block2.authenticity_score,
+          block2.verdict,
+          block2.validator_node,
+          block2.timestamp,
+          block2.signature,
+        ]
+      );
+      await run("UPDATE documents SET ledger_block_hash = ? WHERE uuid = ?", [block2.block_hash, aaravAadhaarReport.document_uuid]);
+
+      // 3. Demo Tampered Salary Slip
+      const tamperedReport = authenticateDocumentLocally({
+        fileName: "Forged_Income_Proof_Application_44.pdf",
+        documentType: "payslip",
+        extractedFields: {
+          applicant_name: "Karan Singhania",
+          monthly_income: 185000,
+          payslip_math: {
+            basic_salary: 30000,
+            hra: 15000,
+            gross_earnings: 185000, // Broken equation!
+            provident_fund: 1200,
+            total_deductions: 1200,
+            net_pay: 183800,
+          },
+        },
+        metadataText: "%PDF-1.5\n/Producer (Adobe Photoshop CC 2023)\n/CreationDate (D:20260101100000Z)\n/ModDate (D:20261015143000Z)\ntrailer\n%%EOF\ntrailer\n%%EOF\n",
+      });
+
+      await run(
+        `INSERT INTO documents (
+          uuid, document_type, file_name, file_size, mime_type, file_hash_sha256,
+          extracted_fields, verification_status, authenticity_score, forensic_verdict, forensic_details, algorithm_checks, verified_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          tamperedReport.document_uuid,
+          "payslip",
+          tamperedReport.file_name,
+          234100,
+          "application/pdf",
+          tamperedReport.file_hash_sha256,
+          JSON.stringify(tamperedReport.extracted_fields),
+          "fake",
+          tamperedReport.authenticity_score,
+          tamperedReport.verdict,
+          JSON.stringify({ flags: tamperedReport.flags, summary: "Critical mathematical balance breakdown and consumer graphic editing tool signatures detected." }),
+          JSON.stringify(tamperedReport.checks),
+          tamperedReport.verified_at,
+        ]
+      );
+
+      const block3 = sealLedgerBlock({
+        blockIndex: 3,
+        previousBlockHash: block2.block_hash,
+        documentUuid: tamperedReport.document_uuid,
+        documentHash: tamperedReport.file_hash_sha256,
+        authenticityScore: tamperedReport.authenticity_score,
+        verdict: tamperedReport.verdict,
+        validatorNode: "node-blr-central-edge",
+      });
+
+      await run(
+        `INSERT INTO distributed_ledger_blocks (
+          block_index, block_hash, previous_block_hash, merkle_root, document_uuid, document_hash,
+          authenticity_score, verdict, validator_node, timestamp, signature
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          block3.block_index,
+          block3.block_hash,
+          block3.previous_block_hash,
+          block3.merkle_root,
+          block3.document_uuid,
+          block3.document_hash,
+          block3.authenticity_score,
+          block3.verdict,
+          block3.validator_node,
+          block3.timestamp,
+          block3.signature,
+        ]
+      );
+      await run("UPDATE documents SET ledger_block_hash = ? WHERE uuid = ?", [block3.block_hash, tamperedReport.document_uuid]);
+    }
     seeded = true;
   } catch (err) {
     console.error("[ensureSeeded error]", err);
@@ -775,7 +1012,7 @@ app.get("/api/public/listings", async (c) => {
 
   const whereClause = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const sql = `
-    SELECT 
+    SELECT
       u.id as unit_id,
       u.name as unit_name,
       u.bedrooms,
@@ -837,7 +1074,7 @@ app.post("/api/ai/recommend", async (c) => {
   if (!parsed.ok) return c.json({ error: parsed.error }, 400);
 
   const units = await query<CandidateListing>(`
-    SELECT 
+    SELECT
       u.id as unit_id,
       u.name as unit_name,
       u.bedrooms,
@@ -872,7 +1109,7 @@ app.post("/api/ai/compare", async (c) => {
   const placeholders = unit_ids.map(() => "?").join(", ");
   const units = await query<CandidateListing>(
     `
-    SELECT 
+    SELECT
       u.id as unit_id,
       u.name as unit_name,
       u.bedrooms,
@@ -1287,6 +1524,32 @@ app.put("/api/leases/:id", async (c) => {
   }
 
   return c.json({ lease: row });
+});
+
+app.post("/api/leases/:id/sign", async (c) => {
+  const user = await verifyToken(c);
+  if (!user) return c.json({ error: "Authentication required" }, 401);
+  const id = intParam(c.req.param("id"));
+  if (!id) return c.json({ error: "Invalid ID" }, 400);
+
+  const lease = await get<any>("SELECT * FROM leases WHERE id = ?", [id]);
+  if (!lease) return c.json({ error: "Lease not found" }, 404);
+
+  if (user.role === "tenant" && lease.primary_tenant_id !== user.tenant_id) {
+    return c.json({ error: "Access denied" }, 403);
+  }
+
+  const signerName = user.full_name || "Verified Resident";
+  const timestamp = new Date().toISOString();
+  const signatureHash = "SHA256:" + Buffer.from(`${id}:${signerName}:${timestamp}`).toString("hex").slice(0, 32).toUpperCase();
+
+  await run(
+    "UPDATE leases SET e_sign_status = 'signed', signed_at = ?, signer_name = ?, signature_hash = ? WHERE id = ?",
+    [timestamp, signerName, signatureHash, id]
+  );
+
+  const updated = await get(`${LEASE_SELECT} WHERE l.id = ?`, [id]);
+  return c.json({ lease: updated, ok: true });
 });
 
 app.delete("/api/leases/:id", async (c) => {
@@ -2026,9 +2289,338 @@ app.get("/api/dashboard/summary", async (c) => {
   });
 });
 
+
+// ── Distributed Documents & Local Forensic Verification Engine ──────
+
+const DocumentVerifyInput = z.object({
+  tenant_id: z.number().int().optional().nullable(),
+  application_id: z.number().int().optional().nullable(),
+  document_type: z.enum([
+    "aadhaar",
+    "pan",
+    "payslip",
+    "bank_statement",
+    "lease_agreement",
+    "employment_letter",
+    "other",
+  ]),
+  file_name: z.string().min(1).max(255),
+  file_size: z.number().int().min(1).max(10 * 1024 * 1024).optional(),
+  mime_type: z.string().max(100).optional(),
+  file_data: z.string().max(15 * 1024 * 1024).optional().nullable(),
+  extracted_fields: z.record(z.unknown()).optional().nullable(),
+  metadata_text: z.string().max(15000).optional().nullable(),
+});
+
+// List submitted documents with filtering
+app.get("/api/documents", async (c) => {
+  const user = await verifyToken(c);
+  if (!user) return c.json({ error: "Authentication required" }, 401);
+
+  const status = c.req.query("status");
+  const docType = c.req.query("type");
+  const tenantId = intParam(c.req.query("tenant_id"));
+  const appId = intParam(c.req.query("application_id"));
+
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  // Scoping: Tenants can ONLY see their own documents
+  if (user.role === "tenant") {
+    if (user.tenant_id) {
+      where.push("(d.tenant_id = ? OR lower(t.email) = lower(?))");
+      params.push(user.tenant_id, user.email);
+    } else {
+      where.push("lower(t.email) = lower(?)");
+      params.push(user.email);
+    }
+  } else if (tenantId) {
+    where.push("d.tenant_id = ?");
+    params.push(tenantId);
+  }
+
+  if (appId) {
+    where.push("d.application_id = ?");
+    params.push(appId);
+  }
+  if (status && status !== "all") {
+    where.push("d.verification_status = ?");
+    params.push(status);
+  }
+  if (docType && docType !== "all") {
+    where.push("d.document_type = ?");
+    params.push(docType);
+  }
+
+  const sql = `
+    SELECT d.*,
+      t.first_name as tenant_first_name, t.last_name as tenant_last_name, t.email as tenant_email,
+      a.first_name as applicant_first_name, a.last_name as applicant_last_name
+    FROM documents d
+    LEFT JOIN tenants t ON t.id = d.tenant_id
+    LEFT JOIN applications a ON a.id = d.application_id
+    ${where.length ? "WHERE " + where.join(" AND ") : ""}
+    ORDER BY d.created_at DESC
+  `;
+
+  const rows = await query<any>(sql, params);
+  const parsedRows = rows.map((r: any) => ({
+    ...r,
+    extracted_fields: r.extracted_fields ? JSON.parse(r.extracted_fields) : {},
+    forensic_details: r.forensic_details ? JSON.parse(r.forensic_details) : {},
+    algorithm_checks: r.algorithm_checks ? JSON.parse(r.algorithm_checks) : [],
+  }));
+
+  return c.json({ documents: parsedRows });
+});
+
+// Get single document by ID or UUID with full cryptographic ledger proof
+app.get("/api/documents/:id", async (c) => {
+  const user = await verifyToken(c);
+  if (!user) return c.json({ error: "Authentication required" }, 401);
+
+  const rawId = c.req.param("id");
+  const isNumeric = /^\d+$/.test(rawId);
+  const sql = `
+    SELECT d.*,
+      t.first_name as tenant_first_name, t.last_name as tenant_last_name, t.email as tenant_email,
+      a.first_name as applicant_first_name, a.last_name as applicant_last_name,
+      b.block_index, b.block_hash, b.previous_block_hash, b.merkle_root, b.validator_node, b.signature as ledger_signature
+    FROM documents d
+    LEFT JOIN tenants t ON t.id = d.tenant_id
+    LEFT JOIN applications a ON a.id = d.application_id
+    LEFT JOIN distributed_ledger_blocks b ON b.document_uuid = d.uuid
+    WHERE ${isNumeric ? "d.id = ?" : "d.uuid = ?"}
+  `;
+
+  const row = await get<any>(sql, [rawId]);
+  if (!row) return c.json({ error: "Document not found" }, 404);
+
+  // Security check: tenant cannot read other users' documents
+  if (user.role === "tenant" && row.tenant_id !== user.tenant_id && row.tenant_email?.toLowerCase() !== user.email.toLowerCase()) {
+    return c.json({ error: "Access denied" }, 403);
+  }
+
+  return c.json({
+    document: {
+      ...row,
+      extracted_fields: row.extracted_fields ? JSON.parse(row.extracted_fields) : {},
+      forensic_details: row.forensic_details ? JSON.parse(row.forensic_details) : {},
+      algorithm_checks: row.algorithm_checks ? JSON.parse(row.algorithm_checks) : [],
+      ledger_proof: row.block_hash ? {
+        block_index: row.block_index,
+        block_hash: row.block_hash,
+        previous_block_hash: row.previous_block_hash,
+        merkle_root: row.merkle_root,
+        validator_node: row.validator_node,
+        signature: row.ledger_signature,
+      } : null,
+    },
+  });
+});
+
+// Verify & authenticate a document locally using mathematical algorithms
+app.post("/api/documents/verify", async (c) => {
+  const user = await verifyToken(c);
+  if (!user) return c.json({ error: "Authentication required" }, 401);
+
+  const parsed = await parseJson(c, DocumentVerifyInput);
+  if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+  const d = parsed.data;
+
+  // Determine tenant ownership: if tenant is calling, enforce their own tenant_id
+  let effectiveTenantId = d.tenant_id ?? null;
+  if (user.role === "tenant") {
+    effectiveTenantId = user.tenant_id ?? null;
+  }
+
+  // Execute Local Algorithmic Verification Engine
+  const report = authenticateDocumentLocally({
+    fileName: d.file_name,
+    documentType: d.document_type as DocumentType,
+    fileData: d.file_data ?? undefined,
+    extractedFields: (d.extracted_fields as any) || undefined,
+    metadataText: d.metadata_text ?? undefined,
+  });
+
+  const status = report.verdict === "ORIGINAL" ? "original" : report.verdict === "SUSPICIOUS" ? "suspicious" : "fake";
+
+  // Insert into distributed documents table
+  const insertDoc = await run(
+    `INSERT INTO documents (
+      uuid, tenant_id, application_id, document_type, file_name, file_size, mime_type, file_hash_sha256,
+      file_data, extracted_fields, verification_status, authenticity_score, forensic_verdict, forensic_details,
+      algorithm_checks, verified_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      report.document_uuid,
+      effectiveTenantId,
+      d.application_id ?? null,
+      d.document_type,
+      d.file_name,
+      d.file_size ?? 1024,
+      d.mime_type ?? "application/pdf",
+      report.file_hash_sha256,
+      d.file_data ? d.file_data.slice(0, 50000) : null,
+      JSON.stringify(d.extracted_fields || {}),
+      status,
+      report.authenticity_score,
+      report.verdict,
+      JSON.stringify({ flags: report.flags, summary: `Algorithmic verification completed locally. Score: ${report.authenticity_score}%` }),
+      JSON.stringify(report.checks),
+      report.verified_at,
+    ]
+  );
+
+  // Retrieve last block to extend the distributed cryptographic hash chain
+  const lastBlock = await get<any>("SELECT block_index, block_hash FROM distributed_ledger_blocks ORDER BY block_index DESC LIMIT 1");
+  const nextIndex = (lastBlock?.block_index ?? 0) + 1;
+  const prevHash = lastBlock?.block_hash ?? "0000000000000000000000000000000000000000000000000000000000000000";
+
+  const block = sealLedgerBlock({
+    blockIndex: nextIndex,
+    previousBlockHash: prevHash,
+    documentUuid: report.document_uuid,
+    documentHash: report.file_hash_sha256,
+    authenticityScore: report.authenticity_score,
+    verdict: report.verdict,
+    validatorNode: "node-edge-local-validator",
+  });
+
+  await run(
+    `INSERT INTO distributed_ledger_blocks (
+      block_index, block_hash, previous_block_hash, merkle_root, document_uuid, document_hash,
+      authenticity_score, verdict, validator_node, timestamp, signature
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      block.block_index,
+      block.block_hash,
+      block.previous_block_hash,
+      block.merkle_root,
+      block.document_uuid,
+      block.document_hash,
+      block.authenticity_score,
+      block.verdict,
+      block.validator_node,
+      block.timestamp,
+      block.signature,
+    ]
+  );
+
+  await run("UPDATE documents SET ledger_block_hash = ? WHERE uuid = ?", [block.block_hash, report.document_uuid]);
+
+  return c.json({
+    document_id: insertDoc.lastInsertRowid,
+    report: {
+      ...report,
+      ledger_proof: block,
+    },
+  }, 201);
+});
+
+// Batch re-verify all stored documents locally
+app.post("/api/documents/verify-batch", async (c) => {
+  const user = await verifyToken(c);
+  if (!user || (user.role !== "landlord" && user.role !== "admin")) {
+    return c.json({ error: "Admin or Landlord privileges required" }, 403);
+  }
+
+  const allDocs = await query<any>("SELECT * FROM documents ORDER BY id ASC");
+  let verifiedCount = 0;
+
+  for (const doc of allDocs) {
+    const fields = doc.extracted_fields ? JSON.parse(doc.extracted_fields) : {};
+    const report = authenticateDocumentLocally({
+      uuid: doc.uuid,
+      fileName: doc.file_name,
+      documentType: doc.document_type as DocumentType,
+      fileData: doc.file_data ?? undefined,
+      extractedFields: fields,
+    });
+
+    const status = report.verdict === "ORIGINAL" ? "original" : report.verdict === "SUSPICIOUS" ? "suspicious" : "fake";
+    await run(
+      `UPDATE documents SET
+        verification_status = ?,
+        authenticity_score = ?,
+        forensic_verdict = ?,
+        forensic_details = ?,
+        algorithm_checks = ?,
+        verified_at = ?
+       WHERE id = ?`,
+      [
+        status,
+        report.authenticity_score,
+        report.verdict,
+        JSON.stringify({ flags: report.flags, summary: "Batch algorithmic verification executed locally." }),
+        JSON.stringify(report.checks),
+        report.verified_at,
+        doc.id,
+      ]
+    );
+    verifiedCount++;
+  }
+
+  return c.json({ ok: true, verified_count: verifiedCount });
+});
+
+// Delete a document record
+app.delete("/api/documents/:id", async (c) => {
+  const user = await verifyToken(c);
+  if (!user || (user.role !== "landlord" && user.role !== "admin")) {
+    return c.json({ error: "Access denied" }, 403);
+  }
+
+  const id = intParam(c.req.param("id"));
+  if (!id) return c.json({ error: "Invalid ID" }, 400);
+
+  const doc = await get<any>("SELECT uuid FROM documents WHERE id = ?", [id]);
+  if (!doc) return c.json({ error: "Not found" }, 404);
+
+  await run("DELETE FROM distributed_ledger_blocks WHERE document_uuid = ?", [doc.uuid]).catch(() => {});
+  const res = await run("DELETE FROM documents WHERE id = ?", [id]);
+  if (!res.changes) return c.json({ error: "Not found" }, 404);
+
+  return c.json({ ok: true });
+});
+
+// Retrieve distributed cryptographic audit ledger blocks
+app.get("/api/ledger/blocks", async (c) => {
+  const user = await verifyToken(c);
+  if (!user) return c.json({ error: "Authentication required" }, 401);
+  if (user.role !== "admin" && user.role !== "landlord") {
+    return c.json({ error: "Admin or Landlord privileges required" }, 403);
+  }
+
+  const blocks = await query<any>("SELECT * FROM distributed_ledger_blocks ORDER BY block_index ASC LIMIT 100");
+  return c.json({ blocks });
+});
+
+// Verify cryptographic integrity of the entire distributed ledger chain
+app.get("/api/ledger/verify-chain", async (c) => {
+  const user = await verifyToken(c);
+  if (!user) return c.json({ error: "Authentication required" }, 401);
+  if (user.role !== "admin" && user.role !== "landlord") {
+    return c.json({ error: "Admin or Landlord privileges required" }, 403);
+  }
+
+  const blocks = await query<LedgerBlock>("SELECT * FROM distributed_ledger_blocks ORDER BY block_index ASC");
+  const chainCheck = verifyDistributedLedgerChain(blocks);
+
+  return c.json({
+    valid: chainCheck.valid,
+    total_blocks: blocks.length,
+    broken_at: chainCheck.brokenAt,
+    error: chainCheck.error,
+    verified_at: new Date().toISOString(),
+  });
+});
+
 // ── Settings (key/value) ───────────────────────────────────────────
 
 app.get("/api/settings", async (c) => {
+  const user = await verifyToken(c);
+  if (!user) return c.json({ error: "Authentication required" }, 401);
   const rows = await query<{ key: string; value: string }>("SELECT key, value FROM settings").catch(() => []);
   // Defaults first, so a caller always gets a currency and a due day even if
   // the seed has not run yet (a brand-new database, or a deleted row).

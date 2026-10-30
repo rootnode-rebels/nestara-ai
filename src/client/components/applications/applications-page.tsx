@@ -18,6 +18,7 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { maskEmail, maskPhone, maskIncome, logPiiAccess } from "@/lib/privacy";
 import { useApp } from "@/context";
@@ -454,6 +455,35 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
                   className="text-xs"
                 />
               </div>
+
+
+              {selectedApp.status === "approved" && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-semibold text-xs">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>Tenant Account Active & Synced</span>
+                    </div>
+                    <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 bg-background text-[10px]">
+                      Password: Password123!
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                    Tenant record and user credentials have been provisioned in the database. The resident can log into the Tenant Portal immediately.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 gap-1.5"
+                    onClick={() => {
+                      setSelectedApp(null);
+                      navigate("/leases");
+                    }}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Draft 11-Month Digital Lease
+                  </Button>
+                </div>
+              )}
 
               {/* Status Update Actions */}
               <div>

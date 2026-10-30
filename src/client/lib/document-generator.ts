@@ -42,6 +42,10 @@ export interface LeaseAgreementData {
   rentDueDay: number;
   lateFee: number;
   currency?: string;
+  eSignStatus?: "draft" | "pending_signature" | "signed";
+  signedAt?: string | null;
+  signerName?: string | null;
+  signatureHash?: string | null;
 }
 
 /**

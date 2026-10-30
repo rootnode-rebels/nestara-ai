@@ -328,3 +328,58 @@ CREATE POLICY p_work_orders_tenant ON work_orders
   FOR ALL
   USING (tenant_id = auth_current_tenant_id())
   WITH CHECK (tenant_id = auth_current_tenant_id());
+
+
+-- 13. Submitted Documents (Tamper-Evident & Authenticated Storage)
+CREATE TABLE IF NOT EXISTS documents (
+  id SERIAL PRIMARY KEY,
+  uuid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+  tenant_id INTEGER REFERENCES tenants(id) ON DELETE SET NULL,
+  application_id INTEGER REFERENCES applications(id) ON DELETE SET NULL,
+  document_type TEXT NOT NULL CHECK (document_type IN ('aadhaar', 'pan', 'payslip', 'bank_statement', 'lease_agreement', 'employment_letter', 'other')),
+  file_name TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  mime_type TEXT NOT NULL,
+  file_hash_sha256 TEXT NOT NULL,
+  file_data TEXT,
+  extracted_fields JSONB DEFAULT '{}'::jsonb,
+  verification_status TEXT NOT NULL DEFAULT 'pending' CHECK (verification_status IN ('original', 'suspicious', 'fake', 'pending')),
+  authenticity_score NUMERIC(5,2) NOT NULL DEFAULT 0.00,
+  forensic_verdict TEXT NOT NULL DEFAULT 'Unverified',
+  forensic_details JSONB DEFAULT '{}'::jsonb,
+  algorithm_checks JSONB DEFAULT '[]'::jsonb,
+  ledger_block_hash TEXT,
+  verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_documents_tenant ON documents(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_documents_app ON documents(application_id);
+CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(verification_status);
+
+-- 14. Distributed Cryptographic Audit Ledger
+CREATE TABLE IF NOT EXISTS distributed_ledger_blocks (
+  block_index SERIAL PRIMARY KEY,
+  block_hash TEXT NOT NULL UNIQUE,
+  previous_block_hash TEXT NOT NULL,
+  merkle_root TEXT NOT NULL,
+  document_uuid UUID NOT NULL,
+  document_hash TEXT NOT NULL,
+  authenticity_score NUMERIC(5,2) NOT NULL,
+  verdict TEXT NOT NULL,
+  validator_node TEXT NOT NULL DEFAULT 'node-edge-primary',
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  signature TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ledger_doc ON distributed_ledger_blocks(document_uuid);
+CREATE INDEX IF NOT EXISTS idx_ledger_hash ON distributed_ledger_blocks(block_hash);
+
+-- RLS for Documents
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE distributed_ledger_blocks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY p_documents_landlord ON documents FOR ALL USING (auth_is_landlord_or_admin());
+CREATE POLICY p_documents_tenant ON documents FOR ALL USING (tenant_id = auth_current_tenant_id());
+CREATE POLICY p_ledger_read ON distributed_ledger_blocks FOR SELECT USING (true);
+CREATE POLICY p_ledger_insert ON distributed_ledger_blocks FOR INSERT WITH CHECK (auth_is_landlord_or_admin());

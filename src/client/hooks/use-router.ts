@@ -12,6 +12,7 @@ export type Route =
   | { name: "applications" }
   | { name: "rent" }
   | { name: "maintenance" }
+  | { name: "documents" }
   | { name: "settings" }
   | { name: "not-found" };
 
@@ -31,6 +32,7 @@ function parse(rawPath: string): Route {
   if (path === "/applications") return { name: "applications" };
   if (path === "/rent") return { name: "rent" };
   if (path === "/maintenance") return { name: "maintenance" };
+  if (path === "/documents") return { name: "documents" };
   if (path === "/settings") return { name: "settings" };
   return { name: "not-found" };
 }
