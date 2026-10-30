@@ -1,3 +1,4 @@
+PRAGMA foreign_keys = OFF;
 -- Clean rebuild: drops (in reverse dependency order) then creates fresh.
 -- D1 doesn't have an interactive shell by default, so keep this idempotent.
 
@@ -7,6 +8,7 @@ DROP TABLE IF EXISTS documents;
 DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS rent_charges;
 DROP TABLE IF EXISTS work_orders;
+DROP TABLE IF EXISTS lease_tenants;
 DROP TABLE IF EXISTS leases;
 DROP TABLE IF EXISTS applications;
 DROP TABLE IF EXISTS tenants;
@@ -202,6 +204,15 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
+
+-- Guaranteed Core Demo Accounts (PBKDF2-HMAC-SHA256 verified)
+INSERT OR IGNORE INTO users (id, email, password_hash, salt, full_name, role, tenant_id, token_version)
+VALUES
+  (1, 'demo@nestara.ai', '379f7b1c30822030142a180c67fc40858977551341b5258b0f278b9147ac01ce', '4bdf5285f0ecea52a736dfc9b4868435', 'Portfolio Manager', 'landlord', NULL, 1),
+  (2, 'admin@nestara.ai', 'b62a2a101214c87319014b684c0321944ee3c6b61840abbb8ec1a11c7ae9162f', '49b8c3bb2c1ee84291cfe812fa0aa5ac', 'Platform Administrator', 'admin', NULL, 1),
+  (3, 'tenant1@nestara.ai', 'd94193dd09bce91417d3f7e7b988ced7687dfe0c823465985ef84deb4cda306c', '1f517869528b5618c490c09371c253e4', 'Aarav Sharma', 'tenant', NULL, 1),
+  (4, 'rohan.verma@gmail.com', 'b6f6f71068556e4b61ba3f8e3ab06b7595acefd0dae4ada5cde2168fa59ae7e9', '3f4529ed47cc4f29dbaf25c721aac587', 'Rohan Verma', 'tenant', NULL, 1),
+  (5, 'ananya.iyer@gmail.com', 'a4fa0919fc871447145351a168278e6a9ecb2112b2518b8f113762dbbf3b1b49', '3f50346bba37ca50a10f0efa17d4d05d', 'Ananya Iyer', 'tenant', NULL, 1);
 
 -- ── Audit Logs (Security & Compliance Tracking) ────────────────────
 CREATE TABLE IF NOT EXISTS audit_logs (

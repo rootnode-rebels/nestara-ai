@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { UserNav } from "./auth/user-nav";
+import { useAuth } from "../hooks/use-auth";
 
 /**
  * The page toolbar and the pane under it.
@@ -27,9 +28,22 @@ export function PageShell({
   width?: string;
   children: React.ReactNode;
 }) {
+const { user } = useAuth();
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card/60 px-6 backdrop-blur-sm">
+        {!user && (
+          <div className="flex items-center gap-2.5 mr-2 shrink-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-sm">
+              <span className="text-sm">✦</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-sm tracking-tight text-foreground leading-none">Nestara AI</span>
+              <span className="text-[10px] text-muted-foreground leading-tight hidden sm:inline">Verified Bengaluru Rentals</span>
+            </div>
+            <div className="h-4 w-px bg-border/80 mx-1 hidden sm:block" />
+          </div>
+        )}
         <h1 className="shrink-0 truncate text-[1.375rem] font-semibold leading-tight tracking-[-0.01em]">
           {title}
         </h1>

@@ -41,11 +41,21 @@ export function AuthModal() {
     }
   };
 
-  const fillDemoLandlord = () => {
-    setMode("login");
-    setEmail("demo@nestara.ai");
-    setPassword("Password123!");
+  const handleQuickLogin = async (demoEmail: string, demoPassword: string) => {
     setError(null);
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setMode("login");
+    setSubmitting(true);
+    try {
+      await login(demoEmail, demoPassword);
+      closeAuthModal();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Authentication failed";
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -219,62 +229,47 @@ export function AuthModal() {
         {/* Quick Demo Access Helper */}
         {mode === "login" && (
           <div className="mt-4 pt-3 border-t border-border/60 space-y-1.5">
-            <p className="text-[11px] font-medium text-muted-foreground text-center">Quick Demo Access (Password: Password123!)</p>
+            <p className="text-[11px] font-medium text-muted-foreground text-center">One-Click Demo Access (Auto Sign-In)</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setMode("login");
-                  setEmail("admin@nestara.ai");
-                  setPassword("Admin123!");
-                  setError(null);
-                }}
-                className="rounded-xl border border-dashed border-destructive/40 bg-destructive/5 py-1.5 px-2 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors text-left"
+                disabled={submitting}
+                onClick={() => handleQuickLogin("admin@nestara.ai", "Admin123!")}
+                className="rounded-xl border border-dashed border-destructive/40 bg-destructive/5 py-1.5 px-2 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors text-left disabled:opacity-50"
               >
                 🛡️ Admin (admin@nestara.ai)
               </button>
               <button
                 type="button"
-                onClick={fillDemoLandlord}
-                className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-1.5 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors text-left"
+                disabled={submitting}
+                onClick={() => handleQuickLogin("demo@nestara.ai", "Password123!")}
+                className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-1.5 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors text-left disabled:opacity-50"
               >
                 🏢 Landlord (demo)
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setMode("login");
-                  setEmail("tenant1@nestara.ai");
-                  setPassword("Password123!");
-                  setError(null);
-                }}
-                className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-1.5 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors text-left"
+                disabled={submitting}
+                onClick={() => handleQuickLogin("tenant1@nestara.ai", "Password123!")}
+                className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-1.5 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors text-left disabled:opacity-50"
               >
                 🔑 Tenant (Aarav)
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => handleQuickLogin("rohan.verma@gmail.com", "Password123!")}
+                className="rounded-xl border border-border bg-muted/40 py-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left disabled:opacity-50"
+              >
+                🔑 Tenant (Rohan)
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2 pt-0.5">
               <button
                 type="button"
-                onClick={() => {
-                  setMode("login");
-                  setEmail("rohan.verma@gmail.com");
-                  setPassword("Password123!");
-                  setError(null);
-                }}
-                className="rounded-xl border border-border bg-muted/40 py-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left"
-              >
-                🔑 Tenant (Rohan)
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("login");
-                  setEmail("ananya.iyer@gmail.com");
-                  setPassword("Password123!");
-                  setError(null);
-                }}
-                className="rounded-xl border border-border bg-muted/40 py-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left"
+                disabled={submitting}
+                onClick={() => handleQuickLogin("ananya.iyer@gmail.com", "Password123!")}
+                className="rounded-xl border border-border bg-muted/40 py-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left disabled:opacity-50"
               >
                 🔑 Tenant (Ananya)
               </button>

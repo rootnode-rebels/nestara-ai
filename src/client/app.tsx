@@ -141,52 +141,57 @@ export function App() {
     "settings",
   ].includes(route.name);
 
+  // Visitors see a clean full-width public site without management sidebars
+  const showSidebar = Boolean(auth.user);
+
   return (
     <AuthContext.Provider value={auth}>
       <AppContext.Provider value={state}>
-        <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground md:flex-row">
-          <div className="flex shrink-0 flex-col justify-between border-r border-border bg-card w-full md:w-64">
-            <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
-              <AppNav
-                title="Nestara AI"
-                icon="home"
-                groups={groups}
-                active={activeFor(route)}
-                onNavigate={(item) => navigate(item.href ?? (auth.user?.role === "tenant" ? "/portal" : isLandlordOrAdmin ? "/dashboard" : "/explore"))}
-              />
-            </div>
-
-            {/* Nordic Privacy & Security Assurance Box */}
-            <div className="hidden md:flex flex-col gap-2 p-3 m-3 rounded-lg border border-border bg-card/60 text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Personal Data Guard</span>
-                </div>
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  RLS Active
-                </span>
+        <div className={`flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground ${showSidebar ? "md:flex-row" : ""}`}>
+          {showSidebar && (
+            <div className="flex shrink-0 flex-col justify-between border-r border-border bg-card w-full md:w-64 animate-in fade-in duration-200">
+              <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+                <AppNav
+                  title="Nestara AI"
+                  icon="home"
+                  groups={groups}
+                  active={activeFor(route)}
+                  onNavigate={(item) => navigate(item.href ?? (auth.user?.role === "tenant" ? "/portal" : isLandlordOrAdmin ? "/dashboard" : "/explore"))}
+                />
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Hardware-isolated session. Tenant PII and financials protected via strict Row-Level Security.
-              </p>
-              <div className="pt-2 border-t border-border space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Encryption</span>
-                  <span className="font-medium text-foreground">AES-256 GCM</span>
+
+              {/* Nordic Privacy & Security Assurance Box */}
+              <div className="hidden md:flex flex-col gap-2 p-3 m-3 rounded-lg border border-border bg-card/60 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Personal Data Guard</span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    RLS Active
+                  </span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Privacy Norm</span>
-                  <span className="font-medium text-foreground">Zero PII Leakage</span>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Hardware-isolated session. Tenant PII and financials protected via strict Row-Level Security.
+                </p>
+                <div className="pt-2 border-t border-border space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Encryption</span>
+                    <span className="font-medium text-foreground">AES-256 GCM</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Privacy Norm</span>
+                    <span className="font-medium text-foreground">Zero PII Leakage</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="hidden md:block p-3 border-t border-border/60">
-              <UserNav />
+              <div className="hidden md:block p-3 border-t border-border/60">
+                <UserNav />
+              </div>
             </div>
-          </div>
+          )}
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {state.loading ? (
               <div className="flex flex-1 items-center justify-center text-muted-foreground">
