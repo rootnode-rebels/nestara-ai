@@ -6,37 +6,139 @@ Nestara AI is an enterprise-grade digital property operating system that bridges
 
 ---
 
-## 🧭 Live Demo & Client Presentation Workflow
+## 🏗️ End-to-End System Architecture & Data Flow
 
-For client demos and screen-sharing sessions, the system offers an automated persona-based workflow:
+Below is the comprehensive technical diagram illustrating how data flows from user interfaces, through the edge middleware pipeline, into analytical engines, and out to persistent storage adapters.
 
 ```mermaid
-graph LR
-  A[1. Public Visitor] -->|Explore & Match| B[2. AI Match & Compare]
-  B -->|1-Click Sign In| C[3. Landlord Command Center]
-  C -->|Inspect Security| D[4. Document Authenticity Engine]
-  D -->|Switch Persona| E[5. Resident Tenant Portal]
+flowchart TD
+    %% CLIENT LAYER
+    subgraph ClientLayer["🖥️ Frontend Client Layer (React 18 + Vite 6 + Tailwind)"]
+        UI_Visitor["Public Visitor<br/>(/explore, /apply)"]
+        UI_Landlord["Landlord Command Center<br/>(/dashboard, /tenants, /leases, /documents)"]
+        UI_Tenant["Resident Self-Service<br/>(/portal, /maintenance)"]
+        State_Auth["useAuth() Provider<br/>(In-Memory + Cookie)"]
+        State_App["useAppState() Hook<br/>(Client Cache & Optimistic UI)"]
+        UI_Visitor --> State_Auth
+        UI_Landlord --> State_Auth
+        UI_Tenant --> State_Auth
+        State_Auth --> State_App
+    end
+
+    %% API GATEWAY LAYER
+    subgraph Gateway["🛡️ Edge API Gateway & Middleware (Hono v4 on Cloudflare Worker / Node)"]
+        CorsHeaders["1. Security Headers<br/>HSTS, CSP, CORP: same-origin, X-Frame: DENY"]
+        RateLimiter["2. Sliding-Window Rate Limiter<br/>IP + Account Lockout Tracker (5 failed = 15m)"]
+        AuthMiddleware["3. Authentication & RBAC Guard<br/>verifyToken() + DB token_version Revocation Check"]
+        Router["4. Typed Router (Zod Validation)"]
+
+        State_App -->|HTTP Fetch with Credentials| CorsHeaders
+        CorsHeaders --> RateLimiter
+        RateLimiter --> AuthMiddleware
+        AuthMiddleware --> Router
+    end
+
+    %% SERVICE & ENGINE LAYER
+    subgraph Engines["⚙️ Core Services & Intelligence Engines"]
+        direction TB
+        
+        subgraph AI_Engine["🧠 AI Intelligence Engine (src/server/ai.ts)"]
+            Matcher["Vector Matcher<br/>Cosine Similarity Matrix"]
+            Triage["Maintenance Triager<br/>Trade Categorization & INR Cost Estimator"]
+            CompareEngine["Comparison Engine<br/>Price/sqft & Layout Benchmarking"]
+        end
+
+        subgraph Doc_Engine["🔐 Document Forensics Engine (src/server/document-authenticator.ts)"]
+            HashCheck["SHA-256 Cryptographic Fingerprinter"]
+            MathCheck["Forensic Math Analyzer<br/>Gross/HRA/EPF Statutory Recalculation"]
+            LedgerSigner["Distributed Ledger Signer<br/>Merkle Root & Hash Chain Constructor"]
+        end
+
+        subgraph Core_Services["🏢 Portfolio & Financial Services"]
+            LeaseService["Lease & Renewal Engine<br/>Pro-rated rent & Security deposit"]
+            RentService["Rent Ledger Generator<br/>Idempotent monthly charges & UPI reconciliations"]
+            AuditLogger["DPDP/GDPR Audit Logger<br/>PII Reveal & Tamper Tracking"]
+        end
+    end
+
+    Router -->|/api/ai/*| AI_Engine
+    Router -->|/api/documents/*| Doc_Engine
+    Router -->|/api/leases, /api/rent-charges, /api/tenants| Core_Services
+    Router -->|/api/audit/*| AuditLogger
+
+    %% DATA ADAPTER & STORAGE LAYER
+    subgraph StorageLayer["💾 Dual-Mode Persistence & Cryptographic Ledgers"]
+        DB_Adapter["Universal DB Adapter (src/server/db.ts)<br/>Auto-detects DATABASE_URL"]
+        
+        subgraph EdgeDB["Default Edge Database"]
+            D1["Cloudflare D1 / Local SQLite<br/>33 Relational Tables"]
+        end
+
+        subgraph EnterpriseDB["Enterprise Cloud Database"]
+            Postgres["PostgreSQL / Supabase / Neon<br/>pgcrypto, pgvector(8) & Row-Level Security (RLS)"]
+        end
+
+        LedgerTable[("Distributed Cryptographic Ledger<br/>distributed_ledger_blocks (Merkle Chain)")]
+        AuditTable[("Audit Trails<br/>audit_logs (Immutable)")]
+
+        DB_Adapter -->|Local / Edge| D1
+        DB_Adapter -->|DATABASE_URL set| Postgres
+        Doc_Engine --> LedgerTable
+        AuditLogger --> AuditTable
+    end
+
+    AI_Engine --> DB_Adapter
+    Doc_Engine --> DB_Adapter
+    Core_Services --> DB_Adapter
 ```
 
-### 1. Public Visitor Journey (`/explore`)
-- **Distraction-Free Discovery:** Public visitors see a full-width experience without internal management sidebars.
-- **Curated Bengaluru Residences:** Direct owner listings across Koramangala, Indiranagar, HSR Layout, Lavelle Road, and Whitefield with 0% brokerage.
-- **AI Recommendation Engine:** Multidimensional vector similarity matching evaluating budget, layout density, and commute hubs (e.g. RMZ Ecospace, Manyata Tech Park).
-- **Side-by-Side Comparison Matrix:** Pin up to 3 candidate residences in a floating comparison dock and analyze price-per-square-foot efficiency, layout density, and amenities side-by-side.
+---
 
-### 2. Landlord & Manager Operations (`/dashboard`)
-- **Executive Real-Time KPIs:** Dynamic SVG **Occupancy Gauge** ring and a proportional **Monthly Cashflow Realization Bar** (collected vs. pending vs. overdue).
-- **Zero-Trust Tenant Directory (`/tenants`):** Tenant phone numbers, emails, and stated incomes are masked by default (`jo****@gmail.com`, `+91 98****3210`). Clicking the reveal eye icon logs an immutable entry to `audit_logs` for DPDP and GDPR compliance.
-- **Lease & Unit Management:** 1-click renewal triggers, pro-rated rent calculations, and automated status synchronization.
+## 🔄 Detailed Operational Workflows
 
-### 3. Edge Cryptographic Document Authenticity Engine (`/documents`)
-- **Forensic Tamper Detection:** Evaluates uploaded tenant payslips, ID cards (Aadhaar / PAN), and employment letters.
-- **Mathematical Integrity Validation:** Inspects basic salary, HRA, and deductions logic to detect fabricated or edited figures.
-- **Distributed Hash Ledger:** Each verified document generates a unique SHA-256 fingerprint anchored to a cryptographic Merkle block hash chain.
+### Workflow 1: Public Exploration & AI Matching Flow
+1. **User Request:** User visits `/explore`, types search criteria (`Indiranagar`, `3 BHK`, `< ₹70,000`), or opens **AI Matchmaker**.
+2. **Client Call:** [`ExplorePage`](file:///d:/projects/nestaraai/Nestara-AI-main/src/client/components/public/explore-page.tsx) dispatches `GET /api/public/listings?search=...`.
+3. **Gateway Handling:** Passed through CORS and edge cache without authentication requirement.
+4. **AI Vector Ranking:** [`ai.ts`](file:///d:/projects/nestaraai/Nestara-AI-main/src/server/ai.ts) computes weighted vector distance comparing unit budget, BHK ratio, and commute target (e.g. RMZ Ecospace) returning a calculated score (`98% Match`).
+5. **Comparison Matrix:** If the visitor selects 2-3 listings and clicks **Compare Side-by-Side**, `POST /api/ai/compare` runs a multi-criteria attribute benchmark (price per sq.ft, amenity scores, layout efficiency).
 
-### 4. Resident Self-Service Portal (`/portal`)
-- **Lease Overview & Rent Receipts:** View active lease details and generate audit-grade bilingual residential agreements and payment receipts with one click.
-- **AI Maintenance Triage:** Residents log repair requests; the AI engine automatically classifies trade category, estimates costs in INR, and assigns urgency ratings (`urgent`, `high`, `normal`, `low`).
+---
+
+### Workflow 2: Zero-Trust Security & PII Privacy Flow
+1. **Data Masking on Fetch:** When a manager navigates to `/tenants` or `/applications`, the client receives records but renders them through [`maskEmail()`](file:///d:/projects/nestaraai/Nestara-AI-main/src/client/lib/privacy.ts) and [`maskPhone()`](file:///d:/projects/nestaraai/Nestara-AI-main/src/client/lib/privacy.ts) (`jo****@gmail.com`, `+91 98****3210`).
+2. **PII Reveal Trigger:** The manager clicks the **Eye Icon** to view the full phone number or income.
+3. **Audit Dispatch:** The frontend immediately fires `POST /api/audit/log` with:
+   - `action`: `"reveal_pii"`
+   - `target_type`: `"tenant"`
+   - `target_id`: Tenant ID
+   - `details`: `"Viewed unmasked phone & income"`
+4. **Backend Ingestion:** Hono extracts the manager's authenticated JWT identity, captures the client IP address, and inserts an immutable audit log record.
+5. **PostgreSQL RLS Enforcement:** In enterprise PostgreSQL deployments, database kernel Row-Level Security policies ensure tenant rows cannot be queried outside the landlord's explicit organization boundary.
+
+---
+
+### Workflow 3: Edge Cryptographic Document Forensics Flow
+1. **Document Upload:** An applicant or tenant uploads an identity card or payslip PDF (`/documents`).
+2. **SHA-256 Fingerprint Derivation:** [`document-authenticator.ts`](file:///d:/projects/nestaraai/Nestara-AI-main/src/server/document-authenticator.ts) computes the raw binary SHA-256 digest (`file_hash_sha256`).
+3. **Forensic Algorithmic Checks:**
+   - **Payslip Math Check:** Validates if `Basic + HRA + Allowances - Deductions = Net Pay`. Flags mathematical discrepancies.
+   - **EPF Statutory Cap Check:** Verifies statutory Indian employee provident fund caps (₹1,800 threshold).
+   - **Metadata & PDF Producer Inspection:** Inspects PDF binary header tags for graphic editing tools (Photoshop, Canva, Acrobat Modified).
+4. **Merkle Block Construction:** The verification record, timestamp, authenticity score, and previous block hash are chained into `distributed_ledger_blocks`.
+5. **Instant Tamper Verification:** Any subsequent verification compares current hash against the ledger to prove the document has not been altered post-signature.
+
+---
+
+### Workflow 4: Tenant Self-Service & Maintenance AI Triage Flow
+1. **Tenant Ticket Submission:** Resident logs into `/portal` and reports an issue (*"Kitchen pipe leaking under sink, water pooling"*).
+2. **AI Triage Processing:** `POST /api/ai/triage-maintenance` is triggered:
+   - NLP parser extracts keywords: `leaking`, `pipe`, `water`.
+   - Assigns category: `"plumbing"`.
+   - Computes urgency: `"high"` (due to water damage risk).
+   - Projects estimated repair cost: `₹1,200 - ₹2,500 INR`.
+3. **Database Insertion:** A work order row is inserted linked to the tenant's `unit_id` and assigned to local plumbing vendors from the `vendors` directory.
+4. **Receipt Generation:** Tenant clicks **"Print Rent Receipt"** → [`document-generator.ts`](file:///d:/projects/nestaraai/Nestara-AI-main/src/client/lib/document-generator.ts) compiles legal English/Kannada tenancy terms into a printable print window directly in the browser without server roundtrip latency.
 
 ---
 
@@ -53,7 +155,7 @@ The login modal includes **1-Click Auto Sign-In buttons** for instant, frictionl
 
 ---
 
-## 🛡️ Zero-Trust Security & Enterprise Architecture
+## 🛡️ Zero-Trust Security & Enterprise Specifications
 
 | Security & Compliance Domain | Implementation Details |
 |---|---|
