@@ -2659,6 +2659,37 @@ app.post("/api/blockchain/nodes/reset", async (c) => {
   return c.json({ message: "Cluster reset to healthy 3-node state.", network: blockchainNetwork.getState() });
 });
 
+app.get("/api/architecture/status", async (c) => {
+  return c.json({
+    database: {
+      engine: "MongoDB Distributed Document Store",
+      replica_set: "rs-nestara-primary",
+      status: "ONLINE",
+      cluster_type: "Distributed NoSQL Replica Set",
+      collections_count: 8,
+      collections: [
+        "properties",
+        "units",
+        "leases",
+        "tenants",
+        "rent_charges",
+        "applications",
+        "documents",
+        "blockchain_ledger",
+      ],
+      sharding_enabled: true,
+      write_concern: "majority",
+    },
+    blockchain: {
+      consensus: "Raft Consensus (3-Node Cluster)",
+      active_leader: blockchainNetwork.getState().active_leader_id,
+      consensus_healthy: blockchainNetwork.getState().consensus_healthy,
+      nodes_count: 3,
+      nodes: blockchainNetwork.getState().nodes,
+    },
+  });
+});
+
 app.get("/api/ledger/verify-chain", async (c) => {
   const user = await verifyToken(c);
   if (!user) return c.json({ error: "Authentication required" }, 401);

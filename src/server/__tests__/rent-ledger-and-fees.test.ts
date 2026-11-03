@@ -202,3 +202,4 @@ describe("Rent Ledger, Late Fee Calculation & Financial Reconciliation", () => {
     expect(lines[2]).toContain('"19000"'); // 18500 + 500 total due
   });
 });
+
