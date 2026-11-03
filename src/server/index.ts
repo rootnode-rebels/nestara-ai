@@ -448,6 +448,59 @@ async function ensureSeeded(): Promise<void> {
       );
     }
 
+    // Seed Demo Persona: Priya Patel (Prospective Resident - NO Lease Yet)
+    const priyaUser = await get<{ id: number }>("SELECT id FROM users WHERE email = 'priya.patel@gmail.com'");
+    if (!priyaUser) {
+      const { hash, salt } = await hashPassword("Password123!");
+      await run(
+        "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ["priya.patel@gmail.com", hash, salt, "Priya Patel", "tenant", null, 1]
+      );
+    }
+
+    // Seed Demo Persona: Vikram Malhotra (High Risk RTI Applicant - Stretched Income)
+    const vikramUser = await get<{ id: number }>("SELECT id FROM users WHERE email = 'vikram.malhotra@gmail.com'");
+    if (!vikramUser) {
+      const { hash, salt } = await hashPassword("Password123!");
+      await run(
+        "INSERT INTO users (email, password_hash, salt, full_name, role, tenant_id, token_version) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ["vikram.malhotra@gmail.com", hash, salt, "Vikram Malhotra", "tenant", null, 1]
+      );
+    }
+
+    // Seed Demo Applications for Priya & Vikram
+    const appPriya = await get<{ id: number }>("SELECT id FROM applications WHERE email = 'priya.patel@gmail.com'");
+    if (!appPriya) {
+      const unit2 = await get<{ id: number }>("SELECT id FROM units ORDER BY id ASC LIMIT 1 OFFSET 1");
+      await run(
+        `INSERT INTO applications (unit_id, first_name, last_name, email, phone, monthly_income, employer, desired_move_in, status, notes)
+         VALUES (?, 'Priya', 'Patel', 'priya.patel@gmail.com', '+91 98765 43210', 120000, 'Infosys BPM Ltd', '2026-12-01', 'new', 'Looking for a 12-month lease. Clean background.')`,
+        [unit2?.id ?? null]
+      );
+    }
+
+    const appVikram = await get<{ id: number }>("SELECT id FROM applications WHERE email = 'vikram.malhotra@gmail.com'");
+    if (!appVikram) {
+      const unit1 = await get<{ id: number }>("SELECT id FROM units ORDER BY id ASC LIMIT 1");
+      await run(
+        `INSERT INTO applications (unit_id, first_name, last_name, email, phone, monthly_income, employer, desired_move_in, status, notes)
+         VALUES (?, 'Vikram', 'Malhotra', 'vikram.malhotra@gmail.com', '+91 98765 99887', 38000, 'Freelance Designer', '2026-12-15', 'screening', 'High RTI ratio (92%). Requires guarantor or co-signer.')`,
+        [unit1?.id ?? null]
+      );
+    }
+
+    // Ensure Rohan Verma has an overdue charge for testing late fee penalty
+    const rohanTenant = await get<{ id: number }>("SELECT id FROM tenants WHERE email = 'rohan.verma@gmail.com'");
+    if (rohanTenant) {
+      const rohanLease = await get<{ id: number }>("SELECT id FROM leases WHERE primary_tenant_id = ?", [rohanTenant.id]);
+      if (rohanLease) {
+        await run(
+          `UPDATE rent_charges SET status = 'overdue', amount_paid = 0, due_date = '2026-10-01', notes = 'October monthly rent past due. Statutory late fee penalty applied.' WHERE lease_id = ? AND period = '2026-10'`,
+          [rohanLease.id]
+        );
+      }
+    }
+
     // Ensure token_version column exists on existing databases (SEC-07)
     await run("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1").catch(() => {});
     // Ensure e-signature columns on leases

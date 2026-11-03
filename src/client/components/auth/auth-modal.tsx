@@ -60,7 +60,7 @@ export function AuthModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl border border-border/80 bg-card p-6 shadow-2xl">
+      <div className="relative w-full max-w-md rounded-2xl border border-border/80 bg-card p-6 shadow-2xl max-h-[94vh] overflow-y-auto">
         <button
           onClick={closeAuthModal}
           className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
@@ -228,51 +228,108 @@ export function AuthModal() {
 
         {/* Quick Demo Access Helper */}
         {mode === "login" && (
-          <div className="mt-4 pt-3 border-t border-border/60 space-y-1.5">
-            <p className="text-[11px] font-medium text-muted-foreground text-center">One-Click Demo Access (Auto Sign-In)</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => handleQuickLogin("admin@nestara.ai", "Admin123!")}
-                className="rounded-xl border border-dashed border-destructive/40 bg-destructive/5 py-1.5 px-2 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors text-left disabled:opacity-50"
-              >
-                🛡️ Admin (admin@nestara.ai)
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => handleQuickLogin("demo@nestara.ai", "Password123!")}
-                className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-1.5 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors text-left disabled:opacity-50"
-              >
-                🏢 Landlord (demo)
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => handleQuickLogin("tenant1@nestara.ai", "Password123!")}
-                className="rounded-xl border border-dashed border-primary/40 bg-primary/5 py-1.5 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors text-left disabled:opacity-50"
-              >
-                🔑 Tenant (Aarav)
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => handleQuickLogin("rohan.verma@gmail.com", "Password123!")}
-                className="rounded-xl border border-border bg-muted/40 py-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left disabled:opacity-50"
-              >
-                🔑 Tenant (Rohan)
-              </button>
+          <div className="mt-4 pt-3 border-t border-border/60 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                1-Click Demo Personas
+              </p>
+              <span className="text-[10px] text-muted-foreground/80">Auto Sign-In</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 pt-0.5">
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => handleQuickLogin("ananya.iyer@gmail.com", "Password123!")}
-                className="rounded-xl border border-border bg-muted/40 py-1.5 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left disabled:opacity-50"
-              >
-                🔑 Tenant (Ananya)
-              </button>
+
+            {/* Management & Admin */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Operations</span>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleQuickLogin("demo@nestara.ai", "Password123!")}
+                  className="rounded-xl border border-primary/40 bg-primary/5 p-2 text-left hover:bg-primary/10 transition-colors disabled:opacity-50"
+                >
+                  <div className="text-[11px] font-bold text-primary flex items-center gap-1">
+                    🏢 Landlord / Manager
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">Portfolio, Ledger & Blockchain</div>
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleQuickLogin("admin@nestara.ai", "Admin123!")}
+                  className="rounded-xl border border-destructive/40 bg-destructive/5 p-2 text-left hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                >
+                  <div className="text-[11px] font-bold text-destructive flex items-center gap-1">
+                    🛡️ Super Admin
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">Audit Trail & System Controls</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Tenant Personas across scenarios */}
+            <div className="space-y-1 pt-1">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tenant Scenarios (Different Levels)</span>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleQuickLogin("tenant1@nestara.ai", "Password123!")}
+                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-2 text-left hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                >
+                  <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                    Aarav Sharma
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate">Active Lease · ₹1.85L · Blockchain OK</div>
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleQuickLogin("rohan.verma@gmail.com", "Password123!")}
+                  className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-2 text-left hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+                >
+                  <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                    Rohan Verma
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate">Active Lease · Overdue + ₹500 Fee</div>
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleQuickLogin("ananya.iyer@gmail.com", "Password123!")}
+                  className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-2 text-left hover:bg-sky-500/10 transition-colors disabled:opacity-50"
+                >
+                  <div className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                    Ananya Iyer
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate">Upcoming Lease · Nov 15 Start</div>
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleQuickLogin("priya.patel@gmail.com", "Password123!")}
+                  className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-2 text-left hover:bg-indigo-500/10 transition-colors disabled:opacity-50"
+                >
+                  <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                    Priya Patel
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate">Applicant · NO Lease Yet · Pending</div>
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleQuickLogin("vikram.malhotra@gmail.com", "Password123!")}
+                  className="col-span-2 rounded-xl border border-purple-500/30 bg-purple-500/5 p-2 text-left hover:bg-purple-500/10 transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400">
+                      Vikram Malhotra
+                    </span>
+                    <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300">
+                      High RTI Risk (92%)
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate">Income ₹38,000 vs Rent ₹35,000 · Rent Burden Alert</div>
+                </button>
+              </div>
             </div>
           </div>
         )}
