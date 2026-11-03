@@ -22,6 +22,7 @@ import {
   Eye,
 } from "lucide-react";
 import { useApp } from "@/context";
+import { api } from "@/api";
 import { PageShell } from "@/components/page-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,11 +71,18 @@ export function DocumentsPage({ navigate }: { navigate: (to: string) => void }) 
   const [netPay, setNetPay] = useState("85000");
   const [metadataText, setMetadataText] = useState("");
 
-  // Ledger Explorer Modal
+  // Ledger Explorer Modal & Blockchain Cluster Failover Simulation
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [ledgerBlocks, setLedgerBlocks] = useState<LedgerBlockRecord[]>([]);
   const [chainIntegrity, setChainIntegrity] = useState<{ valid: boolean; total_blocks: number; error?: string } | null>(null);
   const [verifyingChain, setVerifyingChain] = useState(false);
+  const [clusterState, setClusterState] = useState<{
+    active_leader_id: string;
+    consensus_healthy: boolean;
+    nodes: Array<{ id: string; name: string; role: string; status: string; blocks_validated: number }>;
+    last_failover_event?: { failed_node_id: string; new_leader_id: string; timestamp: string; failover_latency_ms: number; reason: string };
+  } | null>(null);
+  const [simulatingFailover, setSimulatingFailover] = useState(false);
 
   // Batch verify state
   const [batching, setBatching] = useState(false);
@@ -242,16 +250,46 @@ export function DocumentsPage({ navigate }: { navigate: (to: string) => void }) 
     }
   }
 
+  async function handleSimulateNodeFail(nodeId: string) {
+    setSimulatingFailover(true);
+    try {
+      const res = await api<{ network: any; message: string }>("POST", `/api/blockchain/nodes/${nodeId}/fail`);
+      setClusterState(res.network);
+      setBanner(`Node Failure Simulated! ${res.message}`);
+      setTimeout(() => setBanner(null), 7000);
+    } catch {
+      // ignore
+    } finally {
+      setSimulatingFailover(false);
+    }
+  }
+
+  async function handleRecoverCluster() {
+    setSimulatingFailover(true);
+    try {
+      const res = await api<{ network: any }>("POST", "/api/blockchain/nodes/reset");
+      setClusterState(res.network);
+      setBanner("Cluster recovered to 3 online validator nodes.");
+      setTimeout(() => setBanner(null), 5000);
+    } catch {
+      // ignore
+    } finally {
+      setSimulatingFailover(false);
+    }
+  }
+
   async function openLedger() {
     setLedgerOpen(true);
     setVerifyingChain(true);
     try {
-      const [blocks, chain] = await Promise.all([
+      const [blocks, chain, clusterRes] = await Promise.all([
         app.getLedgerBlocks(),
         app.verifyLedgerChain(),
+        api<{ network: any }>("GET", "/api/blockchain/nodes").catch(() => ({ network: null })),
       ]);
       setLedgerBlocks(blocks);
       setChainIntegrity(chain);
+      if (clusterRes && clusterRes.network) setClusterState(clusterRes.network);
     } catch (err) {
       app.setError((err as Error).message);
     } finally {
@@ -793,6 +831,77 @@ export function DocumentsPage({ navigate }: { navigate: (to: string) => void }) 
               Tamper-evident hash chain stored across distributed Cloudflare D1 nodes. Each block cryptographically seals document hashes and Merkle roots.
             </DialogDescription>
           </DialogHeader>
+
+          {/* Live Blockchain Node Topology & Failover Testing Card */}
+          <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-foreground">Decentralized Multi-Node Cluster (Raft Consensus)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={simulatingFailover}
+                  onClick={handleRecoverCluster}
+                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Reset All Nodes
+                </button>
+              </div>
+            </div>
+
+            {/* Nodes Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {clusterState?.nodes.map((node) => {
+                const isLeader = clusterState.active_leader_id === node.id;
+                const isOnline = node.status === "ONLINE";
+                return (
+                  <div key={node.id} className={`rounded-lg border p-2.5 text-xs ${isOnline ? "border-border bg-card" : "border-rose-500/40 bg-rose-500/5"}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-[11px] truncate">{node.name}</span>
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${isLeader ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                        {isLeader ? "Leader" : node.role}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-2">
+                      <span className={isOnline ? "text-emerald-600 font-semibold" : "text-rose-600 font-bold"}>
+                        {isOnline ? "● Healthy (Online)" : "✕ Failed / Unresponsive"}
+                      </span>
+                    </div>
+                    {isOnline ? (
+                      <button
+                        type="button"
+                        disabled={simulatingFailover}
+                        onClick={() => handleSimulateNodeFail(node.id)}
+                        className="w-full rounded bg-destructive/10 hover:bg-destructive/20 text-destructive text-[10px] font-semibold py-1 transition-colors"
+                      >
+                        Simulate Kill Node
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={simulatingFailover}
+                        onClick={handleRecoverCluster}
+                        className="w-full rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 text-[10px] font-semibold py-1 transition-colors"
+                      >
+                        Reboot Node
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {clusterState?.last_failover_event && (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-[11px] text-foreground">
+                <span className="font-bold text-amber-600 block">⚡ Node Failover Consensus Event:</span>
+                <p className="mt-0.5 text-muted-foreground leading-relaxed">
+                  {clusterState.last_failover_event.reason} (Latency: {clusterState.last_failover_event.failover_latency_ms}ms)
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Chain Integrity Status Card */}
           <div className="rounded-lg border border-border bg-card p-3 flex items-center justify-between">

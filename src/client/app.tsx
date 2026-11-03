@@ -16,7 +16,6 @@ import { TenantsList } from "./components/tenants/tenants-list";
 import { TenantPage } from "./components/tenants/tenant-page";
 import { LeasesPage } from "./components/leases/leases-page";
 import { RentPage } from "./components/rent/rent-page";
-import { MaintenancePage } from "./components/maintenance/maintenance-page";
 import { ApplicationsPage } from "./components/applications/applications-page";
 import { DocumentsPage } from "./components/documents/documents-page";
 import { SettingsPage } from "./components/settings/settings-page";
@@ -35,7 +34,6 @@ const LANDLORD_OPERATIONS: AppNavItem[] = [
   { id: "applications", label: "Applications", href: "/applications", icon: "clipboard-list", color: "blue" },
   { id: "documents", label: "Verify Documents", href: "/documents", icon: "file-check", color: "green" },
   { id: "rent", label: "Rent Ledger", href: "/rent", icon: "dollar-sign", color: "amber" },
-  { id: "maintenance", label: "Maintenance", href: "/maintenance", icon: "list-checks", color: "orange" },
 ];
 
 const LANDLORD_ADMIN: AppNavItem[] = [
@@ -137,7 +135,6 @@ export function App() {
     "leases",
     "applications",
     "rent",
-    "maintenance",
     "settings",
   ].includes(route.name);
 
@@ -230,7 +227,6 @@ export function App() {
                 {route.name === "applications" && <ApplicationsPage navigate={navigate} />}
                 {route.name === "documents" && <DocumentsPage navigate={navigate} />}
                 {route.name === "rent" && <RentPage />}
-                {route.name === "maintenance" && <MaintenancePage />}
                 {route.name === "settings" && <SettingsPage />}
                 {route.name === "not-found" && (
                   <Placeholder title="Not found" message="That page doesn't exist." />

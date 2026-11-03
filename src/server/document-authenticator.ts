@@ -16,6 +16,7 @@
  */
 
 import crypto from "crypto";
+import { runIsolationForestAnomalyDetection, type DocumentFeatureVector, type IsolationForestVerdict } from "./isolation-forest";
 
 export type DocumentType =
   | "aadhaar"
@@ -47,6 +48,7 @@ export interface DocumentVerificationReport {
   checks: AlgorithmicCheckResult[];
   flags: string[];
   extracted_fields: Record<string, unknown>;
+  ai_isolation_forest?: IsolationForestVerdict;
   ledger_proof?: {
     block_index: number;
     block_hash: string;
@@ -930,6 +932,37 @@ export function authenticateDocumentLocally(
     verdict = "ORIGINAL";
   }
 
+  // ── AI Algorithm: Isolation Forest Unsupervised Anomaly Detection ──
+  const mathResult = fields.payslip_math ? verifyPayslipCalculations(fields.payslip_math as any) : null;
+  const temporalRes = opts.metadataText ? inspectMetadataTemporal(opts.metadataText) : null;
+  const pdfRes = (opts.fileData || opts.fileName.toLowerCase().endsWith(".pdf"))
+    ? inspectPDFStructure(opts.fileData || opts.metadataText || "")
+    : null;
+
+  const gross = Number(fields.monthly_income || fields.payslip_math?.gross_earnings || 100000);
+  const net = Number(fields.payslip_math?.net_pay || gross * 0.85);
+  const deductions = Number(fields.payslip_math?.total_deductions || gross * 0.15);
+
+  const featureVector: DocumentFeatureVector = {
+    gross_net_ratio: gross > 0 ? net / gross : 0.85,
+    deduction_ratio: gross > 0 ? deductions / gross : 0.15,
+    math_discrepancy: mathResult ? (mathResult.valid ? 0 : 0.15) : 0,
+    temporal_delta_hours: temporalRes?.has_temporal_anomaly ? 48.0 : 0.0,
+    incremental_revisions: pdfRes?.revision_count ? pdfRes.revision_count - 1 : 0,
+    generator_anomaly: temporalRes?.anomalies?.some(a => a.includes("synthetic")) ? 1 : 0,
+  };
+
+  const aiForestVerdict = runIsolationForestAnomalyDetection(featureVector);
+
+  checks.unshift({
+    code: "AI_ISOLATION_FOREST_ANOMALY",
+    name: "AI Isolation Forest (iForest Anomaly Score)",
+    passed: !aiForestVerdict.is_anomaly,
+    severity: "critical",
+    penalty: aiForestVerdict.is_anomaly ? 40 : 0,
+    details: `Algorithm: Isolation Forest Ensemble (20 trees, depth 6). Anomaly Score: ${aiForestVerdict.anomaly_score.toFixed(3)} (Path: ${aiForestVerdict.average_path_length}). Verdict: ${aiForestVerdict.verdict}.`,
+  });
+
   return {
     document_uuid: uuid,
     document_type: opts.documentType,
@@ -940,6 +973,7 @@ export function authenticateDocumentLocally(
     checks,
     flags,
     extracted_fields: fields,
+    ai_isolation_forest: aiForestVerdict,
     verified_at: new Date().toISOString(),
   };
 }

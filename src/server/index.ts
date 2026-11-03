@@ -1,3 +1,4 @@
+import { blockchainNetwork } from "./blockchain-network";
 import {
   authenticateDocumentLocally,
   sealLedgerBlock,
@@ -2495,7 +2496,7 @@ app.post("/api/documents/verify", async (c) => {
     documentHash: report.file_hash_sha256,
     authenticityScore: report.authenticity_score,
     verdict: report.verdict,
-    validatorNode: "node-edge-local-validator",
+    validatorNode: blockchainNetwork.getActiveSigningNode(),
   });
 
   await run(
@@ -2608,6 +2609,34 @@ app.get("/api/ledger/blocks", async (c) => {
 });
 
 // Verify cryptographic integrity of the entire distributed ledger chain
+// ── Blockchain Network Topology & Node Failover Simulator ───────────
+app.get("/api/blockchain/nodes", async (c) => {
+  return c.json({ network: blockchainNetwork.getState() });
+});
+
+app.post("/api/blockchain/nodes/:nodeId/fail", async (c) => {
+  const nodeId = c.req.param("nodeId");
+  const updatedState = blockchainNetwork.simulateNodeFailure(nodeId);
+  return c.json({
+    message: `Node ${nodeId} marked as FAILED. Raft consensus trigger evaluated.`,
+    network: updatedState,
+  });
+});
+
+app.post("/api/blockchain/nodes/:nodeId/recover", async (c) => {
+  const nodeId = c.req.param("nodeId");
+  const updatedState = blockchainNetwork.recoverNode(nodeId);
+  return c.json({
+    message: `Node ${nodeId} recovered and synchronized to current block height.`,
+    network: updatedState,
+  });
+});
+
+app.post("/api/blockchain/nodes/reset", async (c) => {
+  blockchainNetwork.resetToHealthy();
+  return c.json({ message: "Cluster reset to healthy 3-node state.", network: blockchainNetwork.getState() });
+});
+
 app.get("/api/ledger/verify-chain", async (c) => {
   const user = await verifyToken(c);
   if (!user) return c.json({ error: "Authentication required" }, 401);

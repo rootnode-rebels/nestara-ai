@@ -38,7 +38,7 @@ describe("Authentication & Cryptography — PBKDF2 Password Hashing", () => {
 
   it("rejects password check when salt or hash is altered", async () => {
     const { hash, salt } = await hashPassword("SecretPassword");
-    const alteredHash = hash.slice(0, -2) + "ff";
+    const alteredHash = hash.endsWith("ff") ? hash.slice(0, -2) + "00" : hash.slice(0, -2) + "ff";
     const isValid = await verifyPassword("SecretPassword", alteredHash, salt);
     expect(isValid).toBe(false);
   });

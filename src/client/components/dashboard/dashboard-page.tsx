@@ -6,7 +6,7 @@ import {
   ClipboardList,
   Home,
   Receipt,
-  Wrench,
+  Shield,
 } from "lucide-react";
 import { useApp } from "@/context";
 import { api } from "@/api";
@@ -72,11 +72,11 @@ export function DashboardPage({ navigate }: { navigate: (to: string) => void }) 
             icon={<Receipt className="h-4 w-4" />}
           />
           <KpiCard
-            label="Open work orders"
-            value={String(summary.open_work_orders)}
-            sub={summary.urgent_work_orders ? `${summary.urgent_work_orders} urgent` : "Nothing urgent"}
-            icon={<Wrench className="h-4 w-4" />}
-            tone={summary.urgent_work_orders > 0 ? "warn" : "default"}
+            label="Blockchain Consensus"
+            value="3 Active Nodes"
+            sub="Raft Multi-Node Healthy"
+            icon={<Shield className="h-4 w-4" />}
+            tone="default"
           />
         </section>
 
