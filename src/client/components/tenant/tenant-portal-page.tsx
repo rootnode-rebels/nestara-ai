@@ -86,24 +86,6 @@ export function TenantPortalPage({ navigate }: { navigate: (to: string) => void 
   const [data, setData] = useState<TenantPortalData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Ticket Modal state
-  const [ticketModalOpen, setTicketModalOpen] = useState(false);
-  const [ticketTitle, setTicketTitle] = useState("");
-  const [ticketDesc, setTicketDesc] = useState("");
-  const [ticketPriority, setTicketPriority] = useState<"low" | "normal" | "high" | "urgent">("normal");
-  const [ticketImage, setTicketImage] = useState<string | null>(null);
-  const [triaging, setTriaging] = useState(false);
-  const [triageResult, setTriageResult] = useState<{
-    priority: "low" | "normal" | "high" | "urgent";
-    suggested_category: string;
-    estimated_cost: { min: number; max: number; currency: string };
-    urgency_rationale: string;
-    recommended_actions: string[];
-    safety_warnings: string[];
-  } | null>(null);
-  const [submittingTicket, setSubmittingTicket] = useState(false);
-  const [ticketError, setTicketError] = useState<string | null>(null);
-
   // Self-service rent payment states
   const [payingCharge, setPayingCharge] = useState<any | null>(null);
   const [payingMethod, setPayingMethod] = useState<string>("upi");
@@ -150,77 +132,6 @@ export function TenantPortalPage({ navigate }: { navigate: (to: string) => void 
       alert(err instanceof Error ? err.message : "Payment processing failed");
     } finally {
       setIsProcessingPayment(false);
-    }
-  };
-
-  const runAITriage = async (customImage?: string) => {
-    if (!ticketTitle.trim() && !ticketDesc.trim() && !customImage && !ticketImage) {
-      return;
-    }
-    setTriaging(true);
-    try {
-      const res = await api<{
-        triage: {
-          priority: "low" | "normal" | "high" | "urgent";
-          suggested_category: string;
-          estimated_cost: { min: number; max: number; currency: string };
-          urgency_rationale: string;
-          recommended_actions: string[];
-          safety_warnings: string[];
-        };
-      }>("POST", "/api/ai/triage-maintenance", {
-        title: ticketTitle || "Maintenance Issue",
-        description: ticketDesc || null,
-        image_data: customImage || ticketImage || null,
-      });
-      setTriageResult(res.triage);
-      if (res.triage.priority) {
-        setTicketPriority(res.triage.priority);
-      }
-    } catch {
-      // Continue gracefully if triage fails
-    } finally {
-      setTriaging(false);
-    }
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const b64 = reader.result as string;
-      setTicketImage(b64);
-      runAITriage(b64);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleTicketSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmittingTicket(true);
-    setTicketError(null);
-    try {
-      const finalDescription = triageResult
-        ? `${ticketDesc ? ticketDesc.trim() + "\n\n" : ""}[AI Triage]: ${triageResult.urgency_rationale} | Trade: ${triageResult.suggested_category.toUpperCase()} | Est: ₹${triageResult.estimated_cost.min.toLocaleString("en-IN")}-₹${triageResult.estimated_cost.max.toLocaleString("en-IN")}`
-        : ticketDesc;
-
-      await api("POST", "/api/tenant/work-orders", {
-        title: ticketTitle,
-        description: finalDescription,
-        priority: ticketPriority,
-      });
-      setTicketTitle("");
-      setTicketDesc("");
-      setTicketPriority("normal");
-      setTicketImage(null);
-      setTriageResult(null);
-      setTicketModalOpen(false);
-      fetchPortalData();
-    } catch (err: unknown) {
-      setTicketError(err instanceof Error ? err.message : "Failed to create maintenance ticket");
-    } finally {
-      setSubmittingTicket(false);
     }
   };
 

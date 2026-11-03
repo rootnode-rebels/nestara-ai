@@ -40,3 +40,4 @@ describe("Financial Risk Assessment — Rent-to-Income (RTI) Calculations", () =
     expect(result.verdict).toBe("low");
   });
 });
+
