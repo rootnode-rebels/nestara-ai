@@ -79,3 +79,4 @@ describe("AI Document Verification — Isolation Forest Anomaly Detection Algori
     expect(result.anomalous_features.length).toBeGreaterThan(0);
   });
 });
+

@@ -102,6 +102,9 @@ export interface RentCharge {
   unit_id?: number | null;
   lease_rent?: number | null;
   rent_due_day?: number | null;
+  late_fee?: number | null;
+  applied_late_fee?: number | null;
+  effective_total_due?: number | null;
   unit_name?: string | null;
   property_id?: number | null;
   property_name?: string | null;
@@ -181,6 +184,7 @@ export interface Application {
   created_at: string;
   unit_name?: string | null;
   property_name?: string | null;
+  market_rent?: number | null;
 }
 
 export interface DashboardSummary {

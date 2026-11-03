@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Mail, Phone, Plus, Search, User, Eye, EyeOff } from "lucide-react";
+import { Mail, Phone, Plus, Search, User, Eye, EyeOff, Download } from "lucide-react";
 import { maskEmail, maskPhone, logPiiAccess } from "@/lib/privacy";
 import { useApp } from "@/context";
 import { Button } from "@/components/ui/button";
@@ -40,16 +40,58 @@ export function TenantsList({ navigate }: { navigate: (to: string) => void }) {
     );
   }, [tenants, q]);
 
+  function exportTenantsCsv() {
+    const headers = [
+      "Tenant ID",
+      "First Name",
+      "Last Name",
+      "Active Property",
+      "Active Unit",
+      "Email",
+      "Phone",
+      "Registered Date",
+    ];
+
+    const rows = filtered.map((t) => {
+      const email = maskPii ? maskEmail(t.email) : (t.email || "");
+      const phone = maskPii ? maskPhone(t.phone) : (t.phone || "");
+      return [
+        `"${t.id}"`,
+        `"${t.first_name.replace(/"/g, '""')}"`,
+        `"${t.last_name.replace(/"/g, '""')}"`,
+        `"${(t.active_property_name || "None").replace(/"/g, '""')}"`,
+        `"${(t.active_unit_name || "None").replace(/"/g, '""')}"`,
+        `"${email.replace(/"/g, '""')}"`,
+        `"${phone.replace(/"/g, '""')}"`,
+        `"${t.created_at || ""}"`,
+      ].join(",");
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `nestara-tenants-roster-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   return (
     <PageShell
       title="Tenants"
       meta={`${tenants.length} ${tenants.length === 1 ? "record" : "records"}`}
       actions={
-        tenants.length > 0 ? (
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4" /> New tenant
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportTenantsCsv} disabled={filtered.length === 0} className="gap-1.5 h-9">
+            <Download className="h-4 w-4" /> Export CSV
           </Button>
-        ) : null
+          {tenants.length > 0 ? (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4" /> New tenant
+            </Button>
+          ) : null}
+        </div>
       }
       width="max-w-6xl"
     >

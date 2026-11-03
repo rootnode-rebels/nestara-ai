@@ -40,8 +40,10 @@ export function PaymentDialog({ open, onOpenChange, charge, onSaved }: Props) {
 
   useEffect(() => {
     if (!open || !charge) return;
-    const remaining = Math.max(0, (charge.amount ?? 0) - (charge.amount_paid ?? 0));
-    setAmount(String(remaining));
+    const baseRemaining = Math.max(0, (charge.amount ?? 0) - (charge.amount_paid ?? 0));
+    const lateFee = charge.applied_late_fee ?? 0;
+    const totalRemaining = baseRemaining + lateFee;
+    setAmount(String(totalRemaining));
     setMethod("ach");
     setPaidAt(toIsoDate(new Date()));
     setReference("");
@@ -112,6 +114,11 @@ export function PaymentDialog({ open, onOpenChange, charge, onSaved }: Props) {
           <div className="mt-1 text-xs">
             Paid so far: <span className="font-medium tabular-nums">{formatMoney(charge.amount_paid, app.settings.currency)}</span> ·
             Remaining: <span className="font-medium tabular-nums">{formatMoney(remaining, app.settings.currency)}</span>
+            {(charge.applied_late_fee ?? 0) > 0 && (
+              <span className="text-destructive font-semibold ml-1">
+                (+{formatMoney(charge.applied_late_fee!, app.settings.currency)} late penalty)
+              </span>
+            )}
           </div>
         </div>
 

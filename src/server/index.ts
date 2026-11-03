@@ -1600,7 +1600,7 @@ const ChargeInput = z.object({
 
 const CHARGE_SELECT = `
   SELECT c.*,
-    l.unit_id, l.monthly_rent as lease_rent, l.rent_due_day,
+    l.unit_id, l.monthly_rent as lease_rent, l.rent_due_day, l.late_fee,
     u.name as unit_name,
     p.id as property_id, p.name as property_name, p.color as property_color,
     t.id as tenant_id, t.first_name as tenant_first_name, t.last_name as tenant_last_name
@@ -1612,6 +1612,12 @@ const CHARGE_SELECT = `
 `;
 
 app.get("/api/rent-charges", async (c) => {
+  // Grace period automated check: mark open/partial charges past due as overdue
+  await run(
+    `UPDATE rent_charges SET status = 'overdue'
+     WHERE status IN ('open', 'partial') AND amount_paid < amount AND due_date < date('now')`,
+  ).catch(() => {});
+
   const period = c.req.query("period");
   const status = c.req.query("status");
   const where: string[] = [];
@@ -1619,8 +1625,24 @@ app.get("/api/rent-charges", async (c) => {
   if (period) { where.push("c.period = ?"); params.push(period); }
   if (status) { where.push("c.status = ?"); params.push(status); }
   const sql = `${CHARGE_SELECT}${where.length ? " WHERE " + where.join(" AND ") : ""} ORDER BY c.due_date, p.name, u.name`;
-  const rows = await query(sql, params).catch(() => []);
-  return c.json({ charges: rows });
+  const rows = await query<any>(sql, params).catch(() => []);
+
+  // Compute late fee penalty for past-due charges
+  const today = new Date().toISOString().slice(0, 10);
+  const enriched = rows.map((r: any) => {
+    const isPastDue = r.status === "overdue" || (r.status !== "paid" && r.status !== "waived" && r.due_date < today && (r.amount_paid ?? 0) < r.amount);
+    const configuredLateFee = r.late_fee ?? 500;
+    const appliedLateFee = isPastDue ? configuredLateFee : 0;
+    const balance = Math.max(0, (r.amount ?? 0) - (r.amount_paid ?? 0));
+    return {
+      ...r,
+      late_fee: configuredLateFee,
+      applied_late_fee: appliedLateFee,
+      effective_total_due: balance + appliedLateFee,
+    };
+  });
+
+  return c.json({ charges: enriched });
 });
 
 app.post("/api/rent-charges", async (c) => {
@@ -1906,7 +1928,7 @@ const ApplicationInput = z.object({
 
 app.get("/api/applications", async (c) => {
   const rows = await query(
-    `SELECT a.*, u.name as unit_name, p.name as property_name
+    `SELECT a.*, u.name as unit_name, u.market_rent, p.name as property_name
      FROM applications a
      LEFT JOIN units u ON u.id = a.unit_id
      LEFT JOIN properties p ON p.id = u.property_id
@@ -1929,7 +1951,7 @@ app.post("/api/applications", async (c) => {
     ],
   );
   const row = await get(
-    `SELECT a.*, u.name as unit_name, p.name as property_name
+    `SELECT a.*, u.name as unit_name, u.market_rent, p.name as property_name
      FROM applications a LEFT JOIN units u ON u.id = a.unit_id LEFT JOIN properties p ON p.id = u.property_id
      WHERE a.id = ?`,
     [result.lastInsertRowid],
@@ -1948,7 +1970,7 @@ app.put("/api/applications/:id", async (c) => {
   const r = await run(`UPDATE applications SET ${sets.join(", ")} WHERE id = ?`, params);
   if (!r.changes) return c.json({ error: "Not found" }, 404);
   const row = await get(
-    `SELECT a.*, u.name as unit_name, p.name as property_name
+    `SELECT a.*, u.name as unit_name, u.market_rent, p.name as property_name
      FROM applications a LEFT JOIN units u ON u.id = a.unit_id LEFT JOIN properties p ON p.id = u.property_id
      WHERE a.id = ?`,
     [id],

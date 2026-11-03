@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Receipt, Sparkles, Printer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Receipt, Sparkles, Printer, Download, AlertTriangle } from "lucide-react";
 import { useApp } from "@/context";
 import { addMonths, cn, currentPeriod, formatDate, formatMoney, formatPeriod } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -76,17 +76,65 @@ export function RentPage() {
   const totals = useMemo(() => {
     const charged = charges.reduce((s, c) => s + (c.amount ?? 0), 0);
     const collected = charges.reduce((s, c) => s + (c.amount_paid ?? 0), 0);
-    const outstanding = Math.max(0, charged - collected);
+    const lateFees = charges.reduce((s, c) => s + (c.applied_late_fee ?? 0), 0);
+    const outstanding = Math.max(0, charged + lateFees - collected);
     const overdue = charges
-      .filter((c) => c.status === "overdue" || (c.status !== "paid" && c.status !== "waived" && c.due_date < new Date().toISOString().slice(0, 10) && c.amount_paid < c.amount))
-      .reduce((s, c) => s + ((c.amount ?? 0) - (c.amount_paid ?? 0)), 0);
-    return { charged, collected, outstanding, overdue };
+      .filter((c) => c.status === "overdue" || (c.status !== "paid" && c.status !== "waived" && c.due_date < new Date().toISOString().slice(0, 10) && (c.amount_paid ?? 0) < c.amount))
+      .reduce((s, c) => s + ((c.amount ?? 0) + (c.applied_late_fee ?? 0) - (c.amount_paid ?? 0)), 0);
+    return { charged, collected, outstanding, overdue, lateFees };
   }, [charges]);
+
+  function exportRentLedgerCsv() {
+    const headers = [
+      "Period",
+      "Charge ID",
+      "Property Name",
+      "Unit Name",
+      "Tenant Name",
+      "Due Date",
+      "Rent Amount",
+      "Amount Paid",
+      "Base Balance",
+      "Late Fee Penalty",
+      "Total Due",
+      "Status",
+    ];
+
+    const rows = charges.map((c) => {
+      const tenantName = [c.tenant_first_name, c.tenant_last_name].filter(Boolean).join(" ") || "Unassigned";
+      const baseBalance = Math.max(0, (c.amount ?? 0) - (c.amount_paid ?? 0));
+      const lateFee = c.applied_late_fee ?? 0;
+      const totalDue = c.effective_total_due ?? (baseBalance + lateFee);
+      return [
+        `"${c.period}"`,
+        `"${c.id}"`,
+        `"${(c.property_name || "").replace(/"/g, '""')}"`,
+        `"${(c.unit_name || "").replace(/"/g, '""')}"`,
+        `"${tenantName.replace(/"/g, '""')}"`,
+        `"${c.due_date}"`,
+        `"${c.amount}"`,
+        `"${c.amount_paid}"`,
+        `"${baseBalance}"`,
+        `"${lateFee}"`,
+        `"${totalDue}"`,
+        `"${c.status.toUpperCase()}"`,
+      ].join(",");
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `nestara-rent-ledger-${period}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   return (
     <PageShell
       title="Rent ledger"
-      meta="Charges and payments per period"
+      meta="Charges, automated late fee penalties, and audit-grade financial exports"
       actions={
         <>
           {/* The period stepper is view state, so it sits left of the one ink
@@ -111,6 +159,9 @@ export function RentPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+          <Button variant="outline" onClick={exportRentLedgerCsv} disabled={charges.length === 0} className="gap-1.5">
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
           {charges.length > 0 ? (
             <Button onClick={generate} disabled={generating}>
               <Sparkles className="h-4 w-4" /> Generate charges
@@ -193,7 +244,12 @@ export function RentPage() {
                       <TableCell className="text-right tabular-nums">{formatMoney(c.amount, app.settings.currency)}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatMoney(c.amount_paid, app.settings.currency)}</TableCell>
                       <TableCell className={cn("text-right tabular-nums font-medium", balance > 0 && "text-warning", c.status === "overdue" && "text-destructive")}>
-                        {formatMoney(balance, app.settings.currency)}
+                        <div>{formatMoney(c.effective_total_due ?? balance, app.settings.currency)}</div>
+                        {(c.applied_late_fee ?? 0) > 0 && (
+                          <div className="text-[10px] text-destructive flex items-center justify-end gap-0.5 font-semibold mt-0.5">
+                            <span>+{formatMoney(c.applied_late_fee!, app.settings.currency)} late fee</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize", STATUS_TONE[c.status])}>

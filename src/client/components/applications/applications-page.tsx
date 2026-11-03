@@ -19,6 +19,8 @@ import {
   EyeOff,
   ShieldCheck,
   FileText,
+  Download,
+  AlertTriangle,
 } from "lucide-react";
 import { maskEmail, maskPhone, maskIncome, logPiiAccess } from "@/lib/privacy";
 import { useApp } from "@/context";
@@ -51,6 +53,53 @@ const STATUS_CONFIG: Record<
   declined: { label: "Declined", tone: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20", badgeVariant: "destructive" },
   withdrawn: { label: "Withdrawn", tone: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20", badgeVariant: "outline" },
 };
+
+export interface RtiAssessment {
+  ratio: number | null;
+  label: string;
+  tone: string;
+  verdict: "low" | "moderate" | "high" | "unknown";
+  description: string;
+}
+
+export function computeRti(income: number | null | undefined, rent: number | null | undefined): RtiAssessment {
+  if (!income || income <= 0) {
+    return {
+      ratio: null,
+      label: "RTI N/A",
+      tone: "bg-muted text-muted-foreground border-border",
+      verdict: "unknown",
+      description: "Applicant has not provided verified monthly income figures.",
+    };
+  }
+  const effectiveRent = rent && rent > 0 ? rent : 25000;
+  const ratio = Math.round((effectiveRent / income) * 100);
+  if (ratio <= 30) {
+    return {
+      ratio,
+      label: `RTI ${ratio}% · Low Risk`,
+      tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      verdict: "low",
+      description: "Healthy affordability (<30% standard ceiling). Minimal debt-service default risk.",
+    };
+  } else if (ratio <= 45) {
+    return {
+      ratio,
+      label: `RTI ${ratio}% · Moderate`,
+      tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
+      verdict: "moderate",
+      description: "Manageable but stretched rent burden (30-45%). Secondary financial buffer recommended.",
+    };
+  } else {
+    return {
+      ratio,
+      label: `RTI ${ratio}% · High Risk`,
+      tone: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30",
+      verdict: "high",
+      description: "Severely rent-burdened (>45%). High statistical delinquency risk.",
+    };
+  }
+}
 
 export function ApplicationsPage({ navigate }: { navigate: (to: string) => void }) {
   const app = useApp();
@@ -154,6 +203,55 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
     setEditNotes(appRecord.notes || "");
   }
 
+  function exportApplicationsCsv() {
+    const headers = [
+      "Application ID",
+      "Applicant Name",
+      "Email",
+      "Phone",
+      "Target Property",
+      "Target Unit",
+      "Stated Monthly Income",
+      "Target Unit Rent",
+      "RTI Ratio %",
+      "Financial Risk Tier",
+      "Desired Move-In",
+      "Status",
+      "Submitted Date",
+    ];
+
+    const rows = filtered.map((a) => {
+      const name = `${a.first_name} ${a.last_name}`;
+      const email = maskPii ? maskEmail(a.email) : (a.email || "");
+      const phone = maskPii ? maskPhone(a.phone) : (a.phone || "");
+      const rti = computeRti(a.monthly_income, a.market_rent);
+      return [
+        `"${a.id}"`,
+        `"${name.replace(/"/g, '""')}"`,
+        `"${email.replace(/"/g, '""')}"`,
+        `"${phone.replace(/"/g, '""')}"`,
+        `"${(a.property_name || "Any").replace(/"/g, '""')}"`,
+        `"${(a.unit_name || "Unassigned").replace(/"/g, '""')}"`,
+        `"${a.monthly_income ?? ""}"`,
+        `"${a.market_rent ?? ""}"`,
+        `"${rti.ratio !== null ? rti.ratio + "%" : "N/A"}"`,
+        `"${rti.verdict.toUpperCase()}"`,
+        `"${a.desired_move_in || ""}"`,
+        `"${a.status.toUpperCase()}"`,
+        `"${a.created_at}"`,
+      ].join(",");
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `nestara-applications-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   return (
     <PageShell
       title="Rental Applications"
@@ -213,6 +311,19 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
           >
             {maskPii ? <EyeOff className="h-3.5 w-3.5 text-emerald-600" /> : <Eye className="h-3.5 w-3.5 text-muted-foreground" />}
             <span>{maskPii ? "PII Masked" : "PII Visible"}</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={exportApplicationsCsv}
+            disabled={filtered.length === 0}
+            className="gap-1.5 text-xs h-9 shrink-0"
+            title="Download audit-grade CSV roster of rental applications"
+          >
+            <Download className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>Export CSV</span>
           </Button>
 
           <div className="relative w-full sm:w-72">
@@ -300,6 +411,24 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
                           <span className="truncate max-w-[140px]">{item.employer}</span>
                         </div>
                       )}
+                      {(() => {
+                        const rti = computeRti(item.monthly_income, item.market_rent);
+                        if (!rti.ratio) return null;
+                        return (
+                          <div className="mt-1">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border",
+                                rti.tone,
+                              )}
+                              title={rti.description}
+                            >
+                              <ShieldCheck className="h-2.5 w-2.5 shrink-0" />
+                              {rti.label}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
 
                     <TableCell className="text-sm">
@@ -442,6 +571,49 @@ export function ApplicationsPage({ navigate }: { navigate: (to: string) => void 
                   </div>
                 </div>
               </div>
+
+              {(() => {
+                const rti = computeRti(selectedApp.monthly_income, selectedApp.market_rent);
+                return (
+                  <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        <span>Financial Risk & Affordability (RTI Metric)</span>
+                      </div>
+                      <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full border", rti.tone)}>
+                        {rti.label}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                      <div className="rounded bg-muted/40 p-2">
+                        <span className="text-[10px] text-muted-foreground block">Verified Income</span>
+                        <span className="font-semibold text-foreground tabular-nums">
+                          {selectedApp.monthly_income ? formatMoney(selectedApp.monthly_income, app.settings.currency) : "—"}
+                        </span>
+                      </div>
+                      <div className="rounded bg-muted/40 p-2">
+                        <span className="text-[10px] text-muted-foreground block">Target Unit Rent</span>
+                        <span className="font-semibold text-foreground tabular-nums">
+                          {selectedApp.market_rent ? formatMoney(selectedApp.market_rent, app.settings.currency) : "₹25,000"}
+                        </span>
+                      </div>
+                      <div className="rounded bg-muted/40 p-2">
+                        <span className="text-[10px] text-muted-foreground block">RTI Percentage</span>
+                        <span className="font-semibold text-foreground tabular-nums">
+                          {rti.ratio !== null ? `${rti.ratio}%` : "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-muted-foreground flex items-start gap-1.5 pt-0.5">
+                      <AlertTriangle className={cn("h-3.5 w-3.5 shrink-0 mt-0.5", rti.verdict === "high" ? "text-rose-500" : rti.verdict === "moderate" ? "text-amber-500" : "text-emerald-500")} />
+                      <span>{rti.description}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">
