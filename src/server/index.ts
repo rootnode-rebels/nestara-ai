@@ -165,20 +165,54 @@ const DEFAULT_SETTINGS: Record<string, string> = {
 };
 
 const DEMO_PROPERTIES: Array<[string, string, string, string, string, string, string]> = [
-  ["Oakwood Residences", "single_family", "210 Oakwood Rd, Koramangala", "Bengaluru", "KA", "560034", "emerald"],
+  ["Oakwood Residences", "single_family", "210 Oakwood Rd, Koramangala 4th Block", "Bengaluru", "KA", "560034", "emerald"],
   ["Honeybee Haven", "single_family", "88 100ft Rd, Indiranagar", "Bengaluru", "KA", "560038", "amber"],
-  ["308 Mission Heights", "multi_family", "308 Whitefield Main Rd", "Bengaluru", "KA", "560066", "sky"],
-  ["Skyline Tower Residences", "condo", "500 Outer Ring Rd, HSR Layout", "Bengaluru", "KA", "560102", "violet"],
+  ["308 Mission Heights", "multi_family", "308 Whitefield Main Rd, EPIP Zone", "Bengaluru", "KA", "560066", "sky"],
+  ["Skyline Tower Residences", "condo", "500 Outer Ring Rd, HSR Layout Sector 3", "Bengaluru", "KA", "560102", "violet"],
+  ["The Glasshouse at Lavelle", "multi_family", "14 Lavelle Road, Shanthala Nagar", "Bengaluru", "KA", "560001", "rose"],
+  ["Palm Meadows Grove", "single_family", "45 ORR Bellandur, Marathahalli Corridor", "Bengaluru", "KA", "560103", "teal"],
+  ["Bagmane Tech Crest", "condo", "72 CV Raman Nagar, Kaggadasapura", "Bengaluru", "KA", "560093", "indigo"],
+  ["Hebbal Lake Vista", "multi_family", "102 Bellary Rd, Hebbal Manyata Hub", "Bengaluru", "KA", "560024", "blue"],
 ];
 
 /** property index (into DEMO_PROPERTIES), name, beds, baths, sqft, rent, status */
 const DEMO_UNITS: Array<[number, string, number, number, number, number, string]> = [
-  [0, "Main Villa", 3, 2, 1450, 35000, "occupied"],
+  // 0: Oakwood Residences (Koramangala 4th Block - Prime Quiet Villa Enclave)
+  [0, "Main Villa", 3, 2, 1450, 35000, "occupied"], // Aarav Sharma lease
+  [0, "Garden Villa 4B", 3, 2.5, 1600, 55000, "vacant"],
+  [0, "Executive Studio 2A", 1, 1, 750, 42000, "vacant"],
+
+  // 1: Honeybee Haven (Indiranagar 100ft Road - Metro Corridor)
   [1, "Garden House", 2, 1, 980, 22000, "vacant"],
-  [2, "Unit 1", 1, 1, 620, 18000, "occupied"],
-  [2, "Unit 2", 1, 1, 620, 18500, "vacant"],
+  [1, "Loft 302", 1, 1, 720, 28000, "vacant"],
+  [1, "Penthouse Suite 401", 3, 3, 1850, 85000, "vacant"],
+
+  // 2: 308 Mission Heights (Whitefield EPIP Zone - Tech Corridor)
+  [2, "Unit 1", 1, 1, 620, 18000, "occupied"], // Rohan Verma lease
+  [2, "Unit 2", 1, 1, 620, 18500, "vacant"], // Priya Patel pending application
   [2, "Unit 3", 2, 1, 850, 25000, "vacant"],
+  [2, "Skyview Penthouse B", 3, 2.5, 1900, 72000, "vacant"],
+
+  // 3: Skyline Tower Residences (HSR Layout / Ecospace Outer Ring Road)
   [3, "Suite 12B", 2, 2, 1100, 38000, "vacant"],
+  [3, "Sky Villa 24A", 3, 3, 2100, 95000, "vacant"],
+  [3, "Corner Studio 5C", 1, 1, 650, 32000, "vacant"],
+
+  // 4: The Glasshouse at Lavelle (Lavelle Road - Ultra Luxury CBD Flagship)
+  [4, "Terrace Penthouse 801", 4, 4.5, 3400, 245000, "vacant"],
+  [4, "Executive Residence 402", 3, 3, 2200, 145000, "vacant"],
+
+  // 5: Palm Meadows Grove (Bellandur / RMZ Ecospace Hub)
+  [5, "Cedar Villa 12", 4, 3.5, 2800, 120000, "vacant"],
+  [5, "Maple Suite 3B", 2, 2, 1250, 48000, "vacant"],
+
+  // 6: Bagmane Tech Crest (CV Raman Nagar / Tech Park Proximity)
+  [6, "North Wing 204", 2, 2, 1180, 45000, "vacant"],
+  [6, "Duplex 601", 3, 3, 1950, 78000, "vacant"],
+
+  // 7: Hebbal Lake Vista (Hebbal / Manyata Tech Park Corridor)
+  [7, "Tower A - 1402", 3, 2.5, 1750, 62000, "vacant"],
+  [7, "Lakeview Studio 3A", 1, 1, 700, 29000, "vacant"],
 ];
 
 
@@ -241,7 +275,9 @@ async function syncTenantUser(
 let seeded = false;
 
 async function ensureSeeded(): Promise<void> {
-  if (seeded) return;
+  const usersCount = await get<{ n: number }>("SELECT COUNT(*) AS n FROM users").catch(() => ({ n: 0 }));
+  const tenantsCount = await get<{ n: number }>("SELECT COUNT(*) AS n FROM tenants").catch(() => ({ n: 0 }));
+  if (seeded && (usersCount?.n ?? 0) >= 4 && (tenantsCount?.n ?? 0) >= 3) return;
   try {
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       await run("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", [key, value]);
@@ -260,29 +296,38 @@ async function ensureSeeded(): Promise<void> {
         (5, 'ananya.iyer@gmail.com', 'a4fa0919fc871447145351a168278e6a9ecb2112b2518b8f113762dbbf3b1b49', '3f50346bba37ca50a10f0efa17d4d05d', 'Ananya Iyer', 'tenant', 3, 1)
     `).catch(() => {});
 
-    const props = await get<{ n: number }>("SELECT COUNT(*) AS n FROM properties");
-    if ((props?.n ?? 0) === 0) {
-      const ids: number[] = [];
-      for (const p of DEMO_PROPERTIES) {
-        await run(
+    // Ensure all DEMO_PROPERTIES exist in DB
+    const propMap = new Map<number, number>();
+    for (let i = 0; i < DEMO_PROPERTIES.length; i++) {
+      const p = DEMO_PROPERTIES[i];
+      let row = await get<{ id: number }>("SELECT id FROM properties WHERE name = ?", [p[0]]);
+      if (!row) {
+        const res = await run(
           "INSERT INTO properties (name, type, address, city, state, zip, color) VALUES (?, ?, ?, ?, ?, ?, ?)",
           p,
         );
-        const row = await get<{ id: number }>("SELECT id FROM properties ORDER BY id DESC LIMIT 1");
-        ids.push(row?.id ?? 0);
+        row = { id: Number(res.lastInsertRowid) };
       }
-      const units = await get<{ n: number }>("SELECT COUNT(*) AS n FROM units");
-      if ((units?.n ?? 0) === 0) {
-        for (const [pi, name, beds, baths, sqft, rent, status] of DEMO_UNITS) {
-          if (!ids[pi]) continue;
-          await run(
-            "INSERT INTO units (property_id, name, bedrooms, bathrooms, sqft, market_rent, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [ids[pi], name, beds, baths, sqft, rent, status],
-          );
-        }
+      propMap.set(i, row.id);
+    }
+
+    // Ensure all DEMO_UNITS exist in DB
+    for (const [pi, name, beds, baths, sqft, rent, status] of DEMO_UNITS) {
+      const propId = propMap.get(pi);
+      if (!propId) continue;
+      const existing = await get<{ id: number }>(
+        "SELECT id FROM units WHERE property_id = ? AND name = ?",
+        [propId, name]
+      );
+      if (!existing) {
+        await run(
+          "INSERT INTO units (property_id, name, bedrooms, bathrooms, sqft, market_rent, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [propId, name, beds, baths, sqft, rent, status],
+        );
       }
     }
 
+    await run("ALTER TABLE vendors ADD COLUMN color TEXT DEFAULT 'sky'").catch(() => {});
     const vendors = await get<{ n: number }>("SELECT COUNT(*) AS n FROM vendors");
     if ((vendors?.n ?? 0) === 0) {
       for (const v of DEMO_VENDORS) {
@@ -838,17 +883,48 @@ app.post("/api/auth/register", async (c) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const existing = await get<{ id: number; role: string }>("SELECT id, role FROM users WHERE lower(email) = ?", [normalizedEmail]);
+  const existing = await get<UserRecord>("SELECT * FROM users WHERE lower(email) = ?", [normalizedEmail]);
   if (existing) {
-    if (existing.role === "tenant") {
+    // Seamless Direct Authentication: If an account exists (e.g. provisioned by owner or registered), verify and sign in directly!
+    const valid = await verifyPassword(password, existing.password_hash, existing.salt);
+    if (valid) {
+      const token = await generateToken(existing, c);
+      const isSecure = c.req.url.startsWith("https");
+      c.header("Set-Cookie", `nestara_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800${isSecure ? "; Secure" : ""}`);
       return c.json({
-        error: "Your tenant account has already been registered by your property manager. Please sign in directly with your email and password.",
-        code: "TENANT_ALREADY_REGISTERED",
-        is_registered_tenant: true,
-      }, 409);
+        token,
+        user: {
+          id: existing.id,
+          email: existing.email,
+          full_name: existing.full_name,
+          role: existing.role,
+          tenant_id: existing.tenant_id,
+        },
+      }, 200);
     }
-    // Mitigate timing attack & enumeration (SEC-06) by performing equalized work
-    await hashPassword(password, "00000000000000000000000000000000");
+
+    // If an invited/provisioned tenant enters a new password during sign up, update credentials and sign straight in!
+    if (existing.role === "tenant") {
+      const { hash, salt } = await hashPassword(password);
+      await run("UPDATE users SET password_hash = ?, salt = ?, full_name = COALESCE(NULLIF(?, ''), full_name) WHERE id = ?", [hash, salt, full_name, existing.id]);
+      const updated = await get<UserRecord>("SELECT * FROM users WHERE id = ?", [existing.id]);
+      if (updated) {
+        const token = await generateToken(updated, c);
+        const isSecure = c.req.url.startsWith("https");
+        c.header("Set-Cookie", `nestara_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800${isSecure ? "; Secure" : ""}`);
+        return c.json({
+          token,
+          user: {
+            id: updated.id,
+            email: updated.email,
+            full_name: updated.full_name,
+            role: updated.role,
+            tenant_id: updated.tenant_id,
+          },
+        }, 200);
+      }
+    }
+
     return c.json({ error: "Unable to register with this email address. Please sign in or try another email." }, 409);
   }
 
@@ -914,7 +990,18 @@ app.post("/api/auth/login", async (c) => {
     return { locked: false, remaining: 5 - record.count };
   };
 
-  const user = await get<UserRecord>("SELECT * FROM users WHERE lower(email) = ?", [normalizedEmail]);
+  let user = await get<UserRecord>("SELECT * FROM users WHERE lower(email) = ?", [normalizedEmail]);
+  if (!user) {
+    // If a tenant exists in the database created by the landlord, auto-provision and sync immediately
+    const matchingTenant = await get<{ id: number; first_name: string; last_name: string; email: string }>(
+      "SELECT id, first_name, last_name, email FROM tenants WHERE lower(email) = ?",
+      [normalizedEmail]
+    );
+    if (matchingTenant) {
+      await syncTenantUser(matchingTenant, password);
+      user = await get<UserRecord>("SELECT * FROM users WHERE lower(email) = ?", [normalizedEmail]);
+    }
+  }
   if (!user) {
     // Equalize timing response to prevent enumeration of registered emails (SEC-06)
     await hashPassword(password, "00000000000000000000000000000000");
@@ -2105,11 +2192,18 @@ app.get("/api/tenant/portal", async (c) => {
 
   // Find tenant record linked to user account by tenant_id or user email
   let tenant = null;
+  let isLandlordPreview = false;
   if (user.tenant_id) {
     tenant = await get<any>("SELECT * FROM tenants WHERE id = ?", [user.tenant_id]);
   }
   if (!tenant && user.email) {
     tenant = await get<any>("SELECT * FROM tenants WHERE lower(email) = lower(?)", [user.email]);
+  }
+
+  // If logged in as Landlord or Admin and no personal tenant profile is linked, enable Resident Simulator mode
+  if (!tenant && (user.role === "landlord" || user.role === "admin")) {
+    isLandlordPreview = true;
+    tenant = await get<any>("SELECT * FROM tenants WHERE email = 'tenant1@nestara.ai'");
   }
 
   // If no tenant record is yet linked (e.g. prospective tenant), return empty profile with any submitted applications
@@ -2121,6 +2215,7 @@ app.get("/api/tenant/portal", async (c) => {
       charges: [],
       work_orders: [],
       applications: apps,
+      is_landlord_preview: false,
     });
   }
 
@@ -2159,6 +2254,7 @@ app.get("/api/tenant/portal", async (c) => {
     lease,
     charges,
     work_orders: workOrders,
+    is_landlord_preview: isLandlordPreview,
   });
 });
 

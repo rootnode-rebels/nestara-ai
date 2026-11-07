@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS vendors (
   phone TEXT,
   email TEXT,
   notes TEXT,
+  color TEXT NOT NULL DEFAULT 'sky',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

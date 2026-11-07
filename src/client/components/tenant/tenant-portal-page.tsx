@@ -28,6 +28,7 @@ import {
 import { generateRentReceiptHtml, generateLeaseAgreementHtml, printDocument } from "../../lib/document-generator";
 
 interface TenantPortalData {
+  is_landlord_preview?: boolean;
   tenant: {
     id: number;
     first_name: string;
@@ -171,6 +172,22 @@ export function TenantPortalPage({ navigate }: { navigate: (to: string) => void 
       meta={lease ? `${lease.unit_name} at ${lease.property_name}` : "Prospective Resident"}
       width="max-w-6xl"
     >
+      {data?.is_landlord_preview && (
+        <div className="mb-5 flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-xs text-primary shadow-sm">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
+            <span>
+              <b>Property Owner & Landlord View:</b> You are previewing the Resident Experience in Live Simulator Mode using your portfolio's primary lease.
+            </span>
+          </div>
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="rounded-lg bg-primary/20 hover:bg-primary/30 px-3 py-1 font-semibold text-primary transition-colors text-[11px]"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      )}
       {/* If No Active Lease Linked Yet */}
       {!lease ? (
         <div className="space-y-6">

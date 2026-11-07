@@ -34,6 +34,7 @@ const LANDLORD_OPERATIONS: AppNavItem[] = [
   { id: "applications", label: "Applications", href: "/applications", icon: "clipboard-list", color: "blue" },
   { id: "documents", label: "Verify Documents", href: "/documents", icon: "file-check", color: "green" },
   { id: "rent", label: "Rent Ledger", href: "/rent", icon: "dollar-sign", color: "amber" },
+  { id: "portal", label: "Resident Portal", href: "/portal", icon: "key", color: "violet" },
 ];
 
 const LANDLORD_ADMIN: AppNavItem[] = [
@@ -79,7 +80,7 @@ export function App() {
         navigate("/portal");
         return;
       } else if (auth.user.role === "landlord" || auth.user.role === "admin") {
-        if (path === "/" || path === "/explore" || path === "/portal") {
+        if (path === "/" || path === "/explore") {
           navigate("/dashboard");
           return;
         }

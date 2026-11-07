@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "../../api";
 import type { PublicListing } from "../../types";
 import { PageShell } from "../page-shell";
@@ -23,6 +23,7 @@ import {
   Navigation,
   ShieldCheck,
   Check,
+  Flame,
 } from "lucide-react";
 
 interface ExplorePageProps {
@@ -31,15 +32,193 @@ interface ExplorePageProps {
   currentPath?: string;
 }
 
-// Curated architectural photos for Bengaluru modern residences
-const ARCHITECTURAL_PHOTOS = [
+// Curated architectural photos mapped per property
+const PROPERTY_PHOTOS: Record<string, string> = {
+  "Oakwood Residences": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+  "Honeybee Haven": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+  "308 Mission Heights": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
+  "Skyline Tower Residences": "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+  "The Glasshouse at Lavelle": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+  "Palm Meadows Grove": "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=1200&q=80",
+  "Bagmane Tech Crest": "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1200&q=80",
+  "Hebbal Lake Vista": "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=80",
+};
+
+const FALLBACK_PHOTOS = [
   "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=1200&q=80",
 ];
+
+export interface PropertyMetric {
+  tags: string[];
+  commute: Record<string, number>;
+  sound: string;
+  amenities: string[];
+}
+
+export const PROPERTY_METRIC_MAP: Record<string, PropertyMetric> = {
+  "Oakwood Residences": {
+    tags: ["quiet", "pet", "backup", "balcony"],
+    commute: {
+      "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 18,
+      "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 14,
+      "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 20,
+      "Manyata Tech Park / Hebbal (Max 20 mins)": 35,
+      "Electronic City Expressway Hub (Max 25 mins)": 18,
+    },
+    sound: "32 dB · Ultra Serene Enclave",
+    amenities: ["Private Garden", "Pet Lawn", "100% DG Backup", "Dedicated Study"],
+  },
+  "Honeybee Haven": {
+    tags: ["metro", "quiet", "backup", "pet", "balcony"],
+    commute: {
+      "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 22,
+      "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 4,
+      "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 9,
+      "Manyata Tech Park / Hebbal (Max 20 mins)": 26,
+      "Electronic City Expressway Hub (Max 25 mins)": 30,
+    },
+    sound: "39 dB · Tree-lined Avenue",
+    amenities: ["CMH Metro 350m", "Pet Friendly", "100% DG Backup", "Verdant Balcony"],
+  },
+  "308 Mission Heights": {
+    tags: ["backup", "quiet", "ev", "cowork"],
+    commute: {
+      "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 20,
+      "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 22,
+      "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 18,
+      "Manyata Tech Park / Hebbal (Max 20 mins)": 32,
+      "Electronic City Expressway Hub (Max 25 mins)": 35,
+    },
+    sound: "38 dB · Acoustic Double Glazing",
+    amenities: ["EPIP Zone 5m", "EV Level-2 Charger", "100% DG Backup", "Fiber Mesh"],
+  },
+  "Skyline Tower Residences": {
+    tags: ["ev", "backup", "penthouse", "metro", "cowork", "balcony"],
+    commute: {
+      "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 7,
+      "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 16,
+      "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 18,
+      "Manyata Tech Park / Hebbal (Max 20 mins)": 32,
+      "Electronic City Expressway Hub (Max 25 mins)": 14,
+    },
+    sound: "36 dB · Sky Acoustic Glazing",
+    amenities: ["RMZ Ecospace 7m", "Fast EV Ports", "Sky Lounge Deck", "Co-working Pods"],
+  },
+  "The Glasshouse at Lavelle": {
+    tags: ["penthouse", "ev", "quiet", "metro", "backup", "cowork", "balcony"],
+    commute: {
+      "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 24,
+      "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 12,
+      "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 16,
+      "Manyata Tech Park / Hebbal (Max 20 mins)": 18,
+      "Electronic City Expressway Hub (Max 25 mins)": 25,
+    },
+    sound: "30 dB · Luxury Soundproofing",
+    amenities: ["Cubbon Park Views", "Private Elevator", "EV Charger", "360° Wrap Balcony"],
+  },
+  "Palm Meadows Grove": {
+    tags: ["quiet", "pet", "ev", "backup", "balcony"],
+    commute: {
+      "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 5,
+      "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 20,
+      "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 15,
+      "Manyata Tech Park / Hebbal (Max 20 mins)": 28,
+      "Electronic City Expressway Hub (Max 25 mins)": 18,
+    },
+    sound: "28 dB · Private Gated Woods",
+    amenities: ["Ecospace 5m", "Private Lawn", "Pet Friendly", "Solar + Power Backup"],
+  },
+  "Bagmane Tech Crest": {
+    tags: ["metro", "quiet", "backup", "ev", "cowork"],
+    commute: {
+      "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 18,
+      "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 7,
+      "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 4,
+      "Manyata Tech Park / Hebbal (Max 20 mins)": 22,
+      "Electronic City Expressway Hub (Max 25 mins)": 28,
+    },
+    sound: "34 dB · Low Density Street",
+    amenities: ["Bagmane Tech 4m", "Metro 600m", "Dedicated WFH Pod", "EV Charging Point"],
+  },
+  "Hebbal Lake Vista": {
+    tags: ["quiet", "metro", "penthouse", "backup", "balcony"],
+    commute: {
+      "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 32,
+      "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 22,
+      "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 20,
+      "Manyata Tech Park / Hebbal (Max 20 mins)": 7,
+      "Electronic City Expressway Hub (Max 25 mins)": 40,
+    },
+    sound: "31 dB · Lakefront Breeze",
+    amenities: ["Manyata Tech 7m", "Lakefront Balcony", "100% Generator Backup", "Aerobic Gym"],
+  },
+};
+
+const DEFAULT_METRIC: PropertyMetric = {
+  tags: ["quiet", "backup"],
+  commute: {
+    "Embassy TechVillage / RMZ Ecospace (Max 25 mins)": 20,
+    "Indiranagar 100ft Rd / CMH Metro (Max 10 mins)": 15,
+    "Bagmane Tech Park / CV Raman Nagar (Max 15 mins)": 15,
+    "Manyata Tech Park / Hebbal (Max 20 mins)": 25,
+    "Electronic City Expressway Hub (Max 25 mins)": 25,
+  },
+  sound: "35 dB · Residential Street",
+  amenities: ["100% Power Backup", "Dedicated Parking", "Gated Security"],
+};
+
+export function calculateListingScore(
+  listing: PublicListing,
+  maxBudgetValue: number,
+  lifestyleTags: string[],
+  commuteHubSelected: string
+): {
+  score: number;
+  commuteMins: number;
+  matchedTags: string[];
+  soundProfile: string;
+  amenities: string[];
+} {
+  const propMeta = PROPERTY_METRIC_MAP[listing.property_name] || DEFAULT_METRIC;
+
+  // 1. Budget Score (0-38 points)
+  let budgetScore = 38;
+  if (listing.market_rent > maxBudgetValue) {
+    const overRatio = (listing.market_rent - maxBudgetValue) / maxBudgetValue;
+    budgetScore = Math.max(0, 38 - Math.round(overRatio * 50));
+  } else {
+    // Proportional reward for good budget fit
+    budgetScore = 38;
+  }
+
+  // 2. Lifestyle Tags Alignment (0-34 points)
+  const matchedTags = lifestyleTags.filter((t) => propMeta.tags.includes(t));
+  const lifestyleScore = lifestyleTags.length > 0
+    ? (matchedTags.length / lifestyleTags.length) * 34
+    : 28;
+
+  // 3. Commute Proximity (0-28 points)
+  const commuteMins = propMeta.commute[commuteHubSelected] ?? 20;
+  let commuteScore = 18;
+  if (commuteMins <= 8) commuteScore = 28;
+  else if (commuteMins <= 15) commuteScore = 24;
+  else if (commuteMins <= 22) commuteScore = 18;
+  else commuteScore = 10;
+
+  const rawTotal = Math.round(budgetScore + lifestyleScore + commuteScore);
+  const finalScore = Math.min(99, Math.max(68, rawTotal));
+
+  return {
+    score: finalScore,
+    commuteMins,
+    matchedTags,
+    soundProfile: propMeta.sound,
+    amenities: propMeta.amenities,
+  };
+}
 
 const LIFESTYLE_TAGS = [
   { id: "quiet", label: "Quiet Work Sanctuary", icon: VolumeX },
@@ -55,8 +234,11 @@ const NEIGHBORHOOD_TABS = [
   { label: "Koramangala", value: "Koramangala" },
   { label: "Indiranagar", value: "Indiranagar" },
   { label: "HSR Layout", value: "HSR Layout" },
+  { label: "Bellandur / ORR", value: "Bellandur" },
   { label: "Lavelle Road", value: "Lavelle Road" },
   { label: "Whitefield", value: "Whitefield" },
+  { label: "CV Raman Nagar", value: "CV Raman" },
+  { label: "Hebbal", value: "Hebbal" },
 ];
 
 export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps) {
@@ -70,6 +252,7 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
   const [city, setCity] = useState("all");
   const [activeLifestyleTags, setActiveLifestyleTags] = useState<string[]>(["quiet", "metro"]);
   const [commuteHub, setCommuteHub] = useState("Embassy TechVillage / RMZ Ecospace (Max 25 mins)");
+  const [sortBy, setSortBy] = useState<string>("match");
   const [activeTab, setActiveTab] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get("loc") || "";
@@ -109,7 +292,6 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
       const combinedSearch = [search.trim(), activeTab].filter(Boolean).join(" ");
       if (combinedSearch) params.append("search", combinedSearch);
       if (minRent) params.append("minRent", minRent);
-      if (maxRent && Number(maxRent) < 250000) params.append("maxRent", maxRent);
       if (bedrooms !== "all") params.append("bedrooms", bedrooms);
       if (propertyType !== "all") params.append("propertyType", propertyType);
       if (city !== "all") params.append("city", city);
@@ -123,7 +305,7 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
     } finally {
       setLoading(false);
     }
-  }, [search, activeTab, minRent, maxRent, bedrooms, propertyType, city]);
+  }, [search, activeTab, minRent, bedrooms, propertyType, city]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -141,7 +323,42 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
     setCity("all");
     setActiveTab("");
     setActiveLifestyleTags(["quiet", "metro"]);
+    setCommuteHub("Embassy TechVillage / RMZ Ecospace (Max 25 mins)");
+    setSortBy("match");
   };
+
+  // Dynamically scored, filtered, and sorted residences
+  const processedListings = useMemo(() => {
+    const budgetNum = Number(maxRent) || 250000;
+
+    // Filter by max rent slider
+    const filtered = listings.filter((item) => item.market_rent <= budgetNum);
+
+    // Score based on budget, lifestyle tags, and commute hub
+    const scored = filtered.map((item) => {
+      const scoring = calculateListingScore(item, budgetNum, activeLifestyleTags, commuteHub);
+      return {
+        ...item,
+        aiScore: scoring.score,
+        commuteMins: scoring.commuteMins,
+        matchedTags: scoring.matchedTags,
+        soundProfile: scoring.soundProfile,
+        amenities: scoring.amenities,
+      };
+    });
+
+    // Sort listings
+    scored.sort((a, b) => {
+      if (sortBy === "price_asc") return a.market_rent - b.market_rent;
+      if (sortBy === "price_desc") return b.market_rent - a.market_rent;
+      if (sortBy === "commute") return a.commuteMins - b.commuteMins;
+      if (sortBy === "bhk") return b.bedrooms - a.bedrooms;
+      // Default: AI Matchmaker score
+      return b.aiScore - a.aiScore;
+    });
+
+    return scored;
+  }, [listings, maxRent, activeLifestyleTags, commuteHub, sortBy]);
 
   const toggleComparison = (listing: PublicListing) => {
     setSelectedForComparison((prev) => {
@@ -210,9 +427,11 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
               <div className="text-[11px] font-medium text-muted-foreground">
                 Match Confidence
               </div>
-              <div className="text-base font-bold text-foreground">99.4% Accurate</div>
+              <div className="text-base font-bold text-foreground">
+                {processedListings[0]?.aiScore ?? 99}% Calibrated
+              </div>
             </div>
-            <div className="h-10 w-10 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
               <Sparkles className="h-4 w-4" />
             </div>
           </div>
@@ -397,6 +616,20 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
               <option value="townhouse">Townhouse</option>
             </select>
 
+            {/* Interactive Sort Selector */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary focus:border-primary focus:outline-none"
+              title="Sort and Rank Residences"
+            >
+              <option value="match">✨ AI Match Score (Highest First)</option>
+              <option value="price_asc">Rent: Low to High</option>
+              <option value="price_desc">Rent: High to Low</option>
+              <option value="commute">⚡ Fastest Commute First</option>
+              <option value="bhk">Bedrooms: Most First</option>
+            </select>
+
             {/* Zero Brokerage Badge */}
             <div className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs font-medium border border-border">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
@@ -412,6 +645,22 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
                 Reset
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Live Calibration Stats Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-muted-foreground pt-1 px-1 gap-1">
+          <div className="flex items-center gap-2 font-medium">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>
+              Showing <strong className="text-foreground">{processedListings.length}</strong> verified residences
+              {Number(maxRent) < 250000 && (
+                <span> under <strong className="text-foreground">₹{Number(maxRent).toLocaleString("en-IN")}</strong></span>
+              )}
+            </span>
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            Ranked for: <span className="font-semibold text-foreground">{commuteHub.split("(")[0].trim()}</span> ({activeLifestyleTags.length} active lifestyle tags)
           </div>
         </div>
       </section>
@@ -433,7 +682,7 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
             </div>
           ))}
         </div>
-      ) : listings.length === 0 ? (
+      ) : processedListings.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center space-y-3 bg-card">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             <Building2 className="h-6 w-6" />
@@ -453,10 +702,10 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {listings.map((item, index) => {
+          {processedListings.map((item, index) => {
             const selected = isSelected(item.unit_id);
-            const photoUrl = ARCHITECTURAL_PHOTOS[index % ARCHITECTURAL_PHOTOS.length];
-            const matchScore = 98 - (index % 5) * 2;
+            const photoUrl = PROPERTY_PHOTOS[item.property_name] || FALLBACK_PHOTOS[index % FALLBACK_PHOTOS.length];
+            const matchScore = item.aiScore;
             const maintenance = Math.round(item.market_rent * 0.05);
 
             return (
@@ -477,19 +726,25 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
                       className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300 ease-out"
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
                     {/* Match Score Badge (Top-Left) */}
-                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/75 backdrop-blur text-white text-xs font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/80 backdrop-blur text-white text-xs font-semibold shadow-sm">
+                      <span className={`w-1.5 h-1.5 rounded-full ${matchScore >= 90 ? "bg-emerald-400" : "bg-sky-400"}`} />
                       <span>{matchScore}% Match</span>
                     </div>
 
                     {/* Zero Brokerage Badge (Top-Right) */}
                     <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded bg-black/75 backdrop-blur text-amber-300 text-[10px] font-semibold">
+                      <span className="px-2 py-0.5 rounded bg-black/80 backdrop-blur text-amber-300 text-[10px] font-semibold">
                         0% Brokerage
                       </span>
+                    </div>
+
+                    {/* Commute Pill (Bottom-Left) */}
+                    <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 px-2 py-0.5 rounded bg-black/75 backdrop-blur text-emerald-400 text-[10px] font-semibold">
+                      <Navigation className="h-2.5 w-2.5" />
+                      <span>{item.commuteMins}m to Hub</span>
                     </div>
 
                     {/* Type Badge (Bottom-Right) */}
@@ -533,17 +788,32 @@ export function ExplorePage({ navigate, onApply, currentPath }: ExplorePageProps
                       </div>
                     </div>
 
-                    {/* Amenity Badges */}
+                    {/* Sound & Acoustic Spec */}
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground px-0.5">
+                      <span className="text-[10px] text-muted-foreground/90 font-medium">
+                        🔊 {item.soundProfile}
+                      </span>
+                    </div>
+
+                    {/* Amenity & Matched Lifestyle Badges */}
                     <div className="flex flex-wrap gap-1">
-                      <span className="px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground">
-                        100% Power Backup
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground">
-                        Private EV Charger
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground">
-                        Pet Friendly
-                      </span>
+                      {item.matchedTags.map((tagId) => {
+                        const tagObj = LIFESTYLE_TAGS.find((t) => t.id === tagId);
+                        return (
+                          <span
+                            key={tagId}
+                            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-emerald-500/15 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                          >
+                            <Check className="h-2.5 w-2.5" />
+                            {tagObj?.label.split(" ")[0] || tagId}
+                          </span>
+                        );
+                      })}
+                      {item.amenities.slice(0, 3).map((amenity, ai) => (
+                        <span key={ai} className="px-2 py-0.5 rounded bg-muted text-[10px] text-muted-foreground">
+                          {amenity}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>

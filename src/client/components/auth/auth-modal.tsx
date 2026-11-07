@@ -23,7 +23,21 @@ export function AuthModal() {
       if (mode === "login") {
         await login(email, password);
       } else {
-        await register(email, password, fullName, role);
+        try {
+          await register(email, password, fullName, role);
+        } catch (regErr: unknown) {
+          const regMsg = regErr instanceof Error ? regErr.message : "";
+          if (
+            regMsg.includes("already been registered") ||
+            regMsg.includes("TENANT_ALREADY_REGISTERED") ||
+            regMsg.includes("Unable to register")
+          ) {
+            // Direct Sign-In fallback: Landlord/Owner provisioned credentials sign in seamlessly without registration
+            await login(email, password);
+            return;
+          }
+          throw regErr;
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Authentication failed";
